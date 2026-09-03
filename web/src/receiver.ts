@@ -51,8 +51,8 @@ export function mountReceiver(root: ParentNode, options: ReceiverOptions): Recei
   const tuneForm = root.querySelector<HTMLFormElement>("#tune-form") ?? undefined;
   const receiverState = element<HTMLOutputElement>("receiver-state");
   const stationPanel = element<HTMLDivElement>("station-panel");
-  const transmissionBody = element<HTMLTableSectionElement>("transmissions");
-  const transmissionStaging = element<HTMLTableSectionElement>("transmission-staging");
+  const transmissionBody = element<HTMLElement>("transmissions");
+  const transmissionStaging = element<HTMLElement>("transmission-staging");
   const transmissionLog = element<HTMLElement>("transmission-log");
   const transmissionCount = element<HTMLOutputElement>("transmission-count");
   const stationList = element<HTMLDivElement>("station-list");
@@ -179,7 +179,7 @@ export function mountReceiver(root: ParentNode, options: ReceiverOptions): Recei
     if (stationInput) stationInput.value = station;
     stationPanel.hidden = false;
     transmissionStaging.replaceChildren();
-    if (transmissionBody.querySelector("tr[data-transmission]")) setLogBusy(true);
+    if (transmissionBody.querySelector("[data-transmission]")) setLogBusy(true);
     else showTransmissionPlaceholder("Tuning…");
     transmissionCount.value = "…";
     blockScrubber.disabled = true;
@@ -409,19 +409,14 @@ export function mountReceiver(root: ParentNode, options: ReceiverOptions): Recei
   }
 
   function showTransmissionPlaceholder(message: string): void {
-    const row = document.createElement("tr");
-    const cell = document.createElement("td");
-    cell.colSpan = 3;
-    cell.textContent = message;
-    row.append(cell);
-    transmissionBody.replaceChildren(row);
+    transmissionBody.textContent = message;
   }
 
-  function ingestTransmissionRows(target: HTMLTableSectionElement, html: string, replace: boolean): void {
+  function ingestTransmissions(target: HTMLElement, html: string, replace: boolean): void {
     const template = document.createElement("template");
     template.innerHTML = html;
     const cursorMarker = Array.from(
-      template.content.querySelectorAll<HTMLTableRowElement>("tr[data-transmission-cursor]"),
+      template.content.querySelectorAll<HTMLElement>("[data-transmission-cursor]"),
     ).at(-1);
     const cursor = cursorMarker?.dataset.transmissionCursor;
     const chainHead = cursorMarker?.dataset.chainHead;
@@ -429,32 +424,32 @@ export function mountReceiver(root: ParentNode, options: ReceiverOptions): Recei
 
     if (requestMode !== "replay" && cursor) transmissionCursor = cursor;
 
-    const incoming = Array.from(template.content.querySelectorAll<HTMLTableRowElement>("tr[data-transmission]"))
+    const incoming = Array.from(template.content.querySelectorAll<HTMLElement>("[data-transmission]"))
       .map((row) => ({ row, item: readTransmission(row) }))
-      .filter((entry): entry is { row: HTMLTableRowElement; item: Transmission } => entry.item !== undefined)
+      .filter((entry): entry is { row: HTMLElement; item: Transmission } => entry.item !== undefined)
       .sort((a, b) => bySequence(a.item, b.item));
 
     if (replace) target.replaceChildren();
-    else if (incoming.length > 0 && !target.querySelector("tr[data-transmission]")) target.replaceChildren();
+    else if (incoming.length > 0 && !target.querySelector("[data-transmission]")) target.replaceChildren();
     const shown = new Map(
-      Array.from(target.querySelectorAll<HTMLTableRowElement>("tr[data-transmission]")).map((row) => [row.dataset.seq ?? "", row] as const),
+      Array.from(target.querySelectorAll<HTMLElement>("[data-transmission]")).map((row) => [row.dataset.seq ?? "", row] as const),
     );
-    const fresh: { row: HTMLTableRowElement; item: Transmission }[] = [];
+    const fresh: { row: HTMLElement; item: Transmission }[] = [];
     for (const entry of incoming) {
       const seq = entry.item.seq.toString();
       if (shown.has(seq)) continue;
-      const successor = Array.from(target.querySelectorAll<HTMLTableRowElement>("tr[data-transmission]"))
+      const successor = Array.from(target.querySelectorAll<HTMLElement>("[data-transmission]"))
         .find((row) => BigInt(row.dataset.seq ?? "0") > entry.item.seq);
       if (successor) target.insertBefore(entry.row, successor);
       else target.append(entry.row);
       shown.set(seq, entry.row);
       fresh.push(entry);
     }
-    while (target.querySelectorAll("tr[data-transmission]").length > MAX_DOM_TRANSMISSIONS) {
-      target.querySelector("tr[data-transmission]")?.remove();
+    while (target.querySelectorAll("[data-transmission]").length > MAX_DOM_TRANSMISSIONS) {
+      target.querySelector("[data-transmission]")?.remove();
     }
 
-    const parsed = Array.from(target.querySelectorAll<HTMLTableRowElement>("tr[data-transmission]"))
+    const parsed = Array.from(target.querySelectorAll<HTMLElement>("[data-transmission]"))
       .map(readTransmission)
       .filter((item): item is Transmission => item !== undefined)
       .sort(bySequence);
@@ -505,7 +500,7 @@ export function mountReceiver(root: ParentNode, options: ReceiverOptions): Recei
       }
       baselineEstablished = true;
       highestSeenSequence = latestTransmission?.seq ?? 0n;
-      presentStagedRows();
+      presentStagedTransmissions();
       blockScrubber.disabled = false;
       blockAnchor.disabled = false;
       replayFromBlock.disabled = false;
@@ -525,8 +520,8 @@ export function mountReceiver(root: ParentNode, options: ReceiverOptions): Recei
     schedulePoll(4_000);
   }
 
-  function presentStagedRows(): void {
-    const staged = Array.from(transmissionStaging.querySelectorAll<HTMLTableRowElement>("tr[data-transmission]"));
+  function presentStagedTransmissions(): void {
+    const staged = Array.from(transmissionStaging.querySelectorAll<HTMLElement>("[data-transmission]"));
     if (staged.length > 0) transmissionBody.replaceChildren(...staged);
     else showTransmissionPlaceholder("Carrier quiet");
     transmissionStaging.replaceChildren();
@@ -538,7 +533,7 @@ export function mountReceiver(root: ParentNode, options: ReceiverOptions): Recei
     transmissionLog.setAttribute("aria-busy", String(busy));
   }
 
-  function requestTransmissionPage(path: string, target: HTMLTableSectionElement, replace: boolean): void {
+  function requestTransmissionPage(path: string, target: HTMLElement, replace: boolean): void {
     abortTransmissionRequest();
     const epoch = receiverEpoch;
     const controller = new AbortController();
@@ -546,7 +541,7 @@ export function mountReceiver(root: ParentNode, options: ReceiverOptions): Recei
     fragment(path, controller.signal)
       .then((html) => {
         if (epoch !== receiverEpoch) return;
-        ingestTransmissionRows(target, html, replace);
+        ingestTransmissions(target, html, replace);
       })
       .catch((error: unknown) => {
         if (epoch !== receiverEpoch) return;
@@ -603,7 +598,7 @@ export function mountReceiver(root: ParentNode, options: ReceiverOptions): Recei
     pollTimer = window.setTimeout(requestTransmissions, delay);
   }
 
-  function readTransmission(row: HTMLTableRowElement): Transmission | undefined {
+  function readTransmission(row: HTMLElement): Transmission | undefined {
     const station = normaliseAddress(row.dataset.station ?? tunedStation);
     const stationId = row.dataset.stationId ?? "";
     const rawSeq = row.dataset.seq ?? "";

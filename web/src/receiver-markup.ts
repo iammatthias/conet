@@ -46,38 +46,6 @@ const receiverBody = `
 
     <div id="station-panel" class="stack gap-l" hidden>
 
-        <section
-            id="transmission-log"
-            class="transmission-log stack gap-s"
-            aria-labelledby="transmission-log-title"
-            aria-busy="false"
-        >
-            <header class="split gap-s">
-                <h2 id="transmission-log-title">
-                    Transmission log
-                </h2>
-                <output id="transmission-count">0</output>
-            </header>
-            <table>
-                <thead>
-                    <tr>
-                        <th scope="col">Seq</th>
-                        <th scope="col">Block</th>
-                        <th scope="col">Five-figure body</th>
-                    </tr>
-                </thead>
-                <tbody id="transmissions">
-                    <tr>
-                        <td colspan="3">
-                            Choose a frequency or enter a Station
-                            address.
-                        </td>
-                    </tr>
-                </tbody>
-                <tbody id="transmission-staging" hidden></tbody>
-            </table>
-        </section>
-
         <form id="replay-form" class="replay-tune cluster gap-s">
             <label for="block-anchor">Go to block</label>
             <input
@@ -121,6 +89,24 @@ const receiverBody = `
                 >Block —</output
             >
         </form>
+
+        <section
+            id="transmission-log"
+            class="transmission-log stack gap-s"
+            aria-labelledby="transmission-log-title"
+            aria-busy="false"
+        >
+            <header class="split gap-s">
+                <h2 id="transmission-log-title">
+                    Transmission log
+                </h2>
+                <output id="transmission-count">0</output>
+            </header>
+            <p id="transmissions" class="transmission-stream">
+                Choose a frequency or enter a Station address.
+            </p>
+            <div id="transmission-staging" hidden></div>
+        </section>
     </div>
 
 `;

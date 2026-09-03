@@ -43,26 +43,26 @@ export function transmissionFragment(
   scanFloor: bigint,
   explorerUrl?: string,
 ): string {
-  const explorerLink = (path: string, label: string, aria: string) =>
+  const explorerLink = (path: string, label: string, aria: string, className: string) =>
     explorerUrl
-      ? `<a class="chain-link" href="${escapeHtml(explorerUrl)}/${path}" target="_blank" rel="noreferrer noopener" aria-label="${aria}">${label}</a>`
+      ? `<a class="${className}" href="${escapeHtml(explorerUrl)}/${path}" target="_blank" rel="noreferrer noopener" aria-label="${aria}">${label}</a>`
       : label;
   const safeStation = escapeHtml(station);
   const safeStationId = escapeHtml(stationId);
-  const rows = transmissions.map((event) => {
+  const entries = transmissions.map((event) => {
     const cipher = escapeHtml(event.cipher);
     const groups = fiveFigureGroups(event.cipher);
     const sequence = event.seq.toString().padStart(6, "0");
     const writer = escapeHtml(event.writer);
+    const blockLink = explorerLink(`block/${event.blockNumber}`, String(event.blockNumber), `Block ${event.blockNumber} on the block explorer`, "chain-link");
     const transactionLink = event.transactionHash
-      ? ` ${explorerLink(`tx/${escapeHtml(event.transactionHash)}`, "tx", `Transaction for sequence ${event.seq} on the block explorer`)}`
+      ? ` ${explorerLink(`tx/${escapeHtml(event.transactionHash)}`, "tx", `Transaction for sequence ${event.seq} on the block explorer`, "chain-link meta")}`
       : "";
-    const writerLink = ` ${explorerLink(`address/${writer}`, `from ${escapeHtml(shortAddress(event.writer))}`, `Writer ${writer} of sequence ${event.seq} on the block explorer`)}`;
-    return `<tr data-transmission data-station="${safeStation}" data-station-id="${safeStationId}" data-seq="${event.seq}" data-block="${event.blockNumber}" data-nonce="${event.nonce.toString(16).padStart(16, "0")}" data-kind="${event.kind}" data-byte-count="${event.cipher.length / 2}" data-group-count="${groups.length}" data-cipher="${cipher}">` +
-      `<th scope="row">${sequence}</th>` +
-      `<td class="block-cell">${explorerLink(`block/${event.blockNumber}`, String(event.blockNumber), `Block ${event.blockNumber} on the block explorer`)}${transactionLink}${writerLink}</td>` +
-      `<td><output aria-label="Ciphertext as five-figure groups"><code>${groups.join(" ")}</code></output></td>` +
-      `</tr>`;
+    const writerLink = ` ${explorerLink(`address/${writer}`, `from ${escapeHtml(shortAddress(event.writer))}`, `Writer ${writer} of sequence ${event.seq} on the block explorer`, "chain-link meta")}`;
+    return `<span data-transmission data-station="${safeStation}" data-station-id="${safeStationId}" data-seq="${event.seq}" data-block="${event.blockNumber}" data-nonce="${event.nonce.toString(16).padStart(16, "0")}" data-kind="${event.kind}" data-byte-count="${event.cipher.length / 2}" data-group-count="${groups.length}" data-cipher="${cipher}">` +
+      `<b class="seq">${sequence}</b> ${blockLink}${transactionLink}${writerLink} ` +
+      `<span class="groups">${groups.join(" ")}</span> ` +
+      `</span>`;
   }).join("");
-  return `${rows}<tr hidden data-transmission-cursor="${escapeHtml(formatCursor(cursor))}" data-chain-head="${head}" data-scan-floor="${scanFloor}"><td colspan="3"></td></tr>`;
+  return `${entries}<span hidden data-transmission-cursor="${escapeHtml(formatCursor(cursor))}" data-chain-head="${head}" data-scan-floor="${scanFloor}"></span>`;
 }

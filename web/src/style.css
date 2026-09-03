@@ -16,6 +16,7 @@
   --space-m: 1rem;
   --space-l: 1.75rem;
   --space-xl: 3rem;
+  --column: 38.5rem;
 }
 
 * {
@@ -31,11 +32,19 @@
 }
 
 body {
-  width: min(100%, 42rem);
+  width: 100%;
   min-block-size: 100vh;
   margin: 0;
   padding: var(--space-xl) var(--space-l);
   line-height: 1.55;
+}
+
+body .site-header,
+body .frequency-tuner,
+body .replay-tune,
+body .direct-tune,
+body footer {
+  max-inline-size: var(--column);
 }
 
 .wordmark {
@@ -408,15 +417,26 @@ input[type="text"] {
   color: var(--ink-muted);
 }
 
-.transmission-log tbody {
+.transmission-stream {
+  text-align: justify;
+  hyphens: none;
   transition: opacity 180ms ease;
 }
 
-.transmission-log[aria-busy="true"] tbody {
+.transmission-log[aria-busy="true"] .transmission-stream {
   opacity: 0.4;
 }
 
-tr.arrived {
+.transmission-stream .seq {
+  font-weight: 700;
+}
+
+.transmission-stream .meta {
+  font-style: italic;
+  opacity: 0.6;
+}
+
+[data-transmission].arrived {
   animation: arrive 360ms ease-out;
 }
 
@@ -427,43 +447,15 @@ tr.arrived {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .transmission-log tbody {
+  .transmission-stream {
     transition: none;
   }
 
-  tr.arrived {
+  [data-transmission].arrived {
     animation: none;
   }
 }
 
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-caption,
-th,
-td {
-  padding: 0.3rem 0.75rem 0.3rem 0;
-  text-align: left;
-  vertical-align: top;
-}
-
-th:last-child,
-td:last-child {
-  padding-inline-end: 0;
-}
-
-thead th {
-  font-size: 0.6875rem;
-  font-weight: 400;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink-muted);
-  border-block-end: 1px solid var(--hairline);
-}
-
-td:last-child,
 code,
 output {
   overflow-wrap: anywhere;
@@ -547,16 +539,6 @@ footer a {
   text-decoration-color: currentColor;
 }
 
-.block-cell {
-  white-space: nowrap;
-}
-
-.block-cell .chain-link + .chain-link {
-  margin-inline-start: 0.5ch;
-  font-size: 0.6875rem;
-  opacity: 0.6;
-}
-
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -580,10 +562,4 @@ footer a {
   max-block-size: var(--conet-tuner-log-height, 28rem);
   overflow-y: auto;
   overscroll-behavior: contain;
-}
-
-.receiver-embed .transmission-log thead th {
-  position: sticky;
-  inset-block-start: 0;
-  background: inherit;
 }

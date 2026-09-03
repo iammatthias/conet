@@ -365,7 +365,7 @@ describe("Bun Station server", () => {
       new Request(`http://local${transmissionsPath}`),
     );
     const body = await response.text();
-    expect(body).toContain("<tr data-transmission");
+    expect(body).toContain("<span data-transmission");
     expect(body).toContain(`data-station=\"${station}\"`);
     expect(body).toContain("data-seq=\"1\"");
     expect(body).toContain("data-block=\"3\"");
@@ -374,7 +374,7 @@ describe("Bun Station server", () => {
     expect(body).toContain("data-station-id=\"1\"");
     expect(body).toContain("data-group-count=\"1\"");
     expect(body).toContain("from 0x4444…4444");
-    expect(body).toContain("<code>65407</code>");
+    expect(body).toContain('<span class="groups">65407</span>');
   });
 });
 

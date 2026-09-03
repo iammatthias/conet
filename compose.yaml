@@ -1,0 +1,40 @@
+services:
+  indexer:
+    build:
+      context: ./indexer
+    restart: unless-stopped
+    environment:
+      - CONET_RPC_URL=${CONET_RPC_URL}
+      - CONET_CHAIN_ID=${CONET_CHAIN_ID}
+      - CONET_FACTORY_ADDRESS=${CONET_FACTORY_ADDRESS}
+      - CONET_FACTORY_BLOCK=${CONET_FACTORY_BLOCK}
+      - CONET_DB_PATH=/data/conet.sqlite
+      - CONET_INDEXER_PORT=3100
+      - CONET_MAX_BLOCK_RANGE=${CONET_MAX_BLOCK_RANGE:-2000}
+      - CONET_ADDRESS_CHUNK=${CONET_ADDRESS_CHUNK:-100}
+    volumes:
+      - ./data:/data
+    healthcheck:
+      test: ["CMD", "bun", "-e", "await fetch('http://127.0.0.1:3100/health').then(r => r.ok ? 0 : process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  tuner:
+    build:
+      context: ./web
+    restart: unless-stopped
+    depends_on:
+      - indexer
+    environment:
+      - PORT=3000
+      - STATION_RPC_URL=${CONET_RPC_URL}
+      - STATION_CHAIN_ID=${CONET_CHAIN_ID}
+      - STATION_FACTORY_ADDRESS=${CONET_FACTORY_ADDRESS}
+      - STATION_FACTORY_BLOCK=${CONET_FACTORY_BLOCK}
+      - STATION_INDEXER_URL=http://indexer:3100
+      - STATION_EMBED_ORIGINS=${CONET_EMBED_ORIGINS:-}
+      - STATION_MAX_BLOCK_RANGE=${STATION_MAX_BLOCK_RANGE:-2000}
+    ports:
+      - "${BIND_IP:-127.0.0.1}:${CONET_TUNER_PORT:-8900}:3000"

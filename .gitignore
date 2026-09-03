@@ -1,0 +1,12 @@
+# Foundry build products
+cache/
+out/
+broadcast/
+
+# Local credentials
+.env
+*.otp
+
+# Build products and dependencies
+web/dist/
+node_modules/

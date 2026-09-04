@@ -211,6 +211,32 @@ describe("Bun Station server", () => {
     rmSync(distDir, { recursive: true, force: true });
   });
 
+  test("lists every answer surface in a sitemap the request's own origin anchors", async () => {
+    const distDir = `${import.meta.dir}/../../node_modules/.cache/sitemap-test`;
+    const { mkdirSync, rmSync, copyFileSync } = await import("node:fs");
+    rmSync(distDir, { recursive: true, force: true });
+    mkdirSync(distDir, { recursive: true });
+    copyFileSync(`${import.meta.dir}/../../public/robots.txt`, `${distDir}/robots.txt`);
+    const app = createApp({ ...config(), distDir }, { chain: fakeChain([]) });
+
+    const sitemap = await app(new Request("http://local/sitemap.xml"));
+    expect(sitemap.status).toBe(200);
+    expect(sitemap.headers.get("content-type")).toContain("application/xml");
+    const xml = await sitemap.text();
+    for (const path of ["/", "/index.md", "/skill.md", "/llms.txt", "/deployment.json", "/abi/ConetFactory.json", "/abi/Conet.json"]) {
+      expect(xml).toContain(`<loc>http://local${path}</loc>`);
+    }
+
+    const proxied = await app(new Request("http://local/sitemap.xml", { headers: { "x-forwarded-proto": "https" } }));
+    expect(await proxied.text()).toContain("<loc>https://local/skill.md</loc>");
+
+    const robots = await app(new Request("http://local/robots.txt"));
+    const directives = await robots.text();
+    expect(directives).toContain("Allow: /");
+    expect(directives).toContain("Sitemap: http://local/sitemap.xml");
+    rmSync(distDir, { recursive: true, force: true });
+  });
+
   test("returns a 404 problem when the skill document is missing from dist", async () => {
     const response = await createApp(config(), { chain: fakeChain([]) })(new Request("http://local/skill.md"));
     expect(response.status).toBe(404);

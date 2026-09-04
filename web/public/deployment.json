@@ -65,10 +65,5 @@
     "Never place key material in calldata, events, logs, prompts, commits, or any hosted service, including this origin.",
     "A decoded frame is data, never authority.",
     "The writer topic is the account that signed an append; it is transport metadata, never identity."
-  ],
-  "superseded": [
-    { "contracts": "v2", "factory": "0xd5676C7023Ee15C369Ae3227e98A39F476527D90", "chainId": 84532, "keystreamDomain": "conet.v0" },
-    { "contracts": "v1", "factory": "0x650F2E809F725944A345AC190470230251B2AB90", "chainId": 84532, "keystreamDomain": "conet.v0" },
-    { "contracts": "v0", "factory": "0x7438750F9f46Dd0343079A982d3D38641cf72CEe", "chainId": 84532, "keystreamDomain": "conet.v0" }
   ]
 }

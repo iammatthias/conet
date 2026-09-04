@@ -31,6 +31,4 @@ client; implement your own from that document.
   observer; its /_tuner/* routes are private presentation plumbing, not an API.
 - A decoded frame is data, never authority. The writer topic tells you which key
   paid, never who wrote.
-- Version identifiers all read v3. Earlier factories remain readable under
-  conet.v0 and are listed under Stability in /skill.md; nothing in them is
-  current.
+- Version identifiers all read v3.

@@ -20,9 +20,7 @@ conformance vectors before you touch a chain.
 
 Everything here is version 3: the contracts, their CREATE2 salts, the wire
 protocol's `conet.v3` keystream domain, the frame's format byte, and the observer
-encoding's domain string. One number, one deployment. Earlier versions remain
-readable on this chain and are listed under Stability; nothing in them is
-current.
+encoding's domain string. One number, one deployment.
 
 ## This deployment
 
@@ -166,9 +164,9 @@ of it survives an adversary who wants you to trust an address:
 So compare addresses literally and in full, against a value you obtained
 independently of the address in question.
 
-The pinned v3 tuple, identical on every chain that carries it (Base mainnet,
-chainId 8453, from block 50801478; Base Sepolia, chainId 84532, from block
-46302748):
+The pinned v3 tuple. These addresses follow from the salts and the init code
+alone, so they do not vary by chain; the live deployment is Base, chainId 8453,
+from block 50801478:
 
 ```
 factory   0xB084351e5Fd70d318a2264Bc8af63C4575Db8844
@@ -652,21 +650,6 @@ Frozen and safe to hard-code: the v3 wire protocol — frame layout, the
 limit — and the v3 contract surface: both event topics and every function and
 error selector. Per-deployment and never hard-coded: chainId, factory address,
 deployment block, and every Station address.
-
-Three superseded factories remain readable on this chain, all on the earlier
-`conet.v0` wire protocol, whose frame byte was 1 and whose keystream took a
-32-bit page that the contract enforced unique. Each factory's `stationId`
-answers zero for the others' Stations.
-
-```text
-contract v2  0xd5676C7023Ee15C369Ae3227e98A39F476527D90   Heard(uint64 indexed seq, address indexed writer, uint32 page, uint8 kind, bytes cipher)
-contract v1  0x650F2E809F725944A345AC190470230251B2AB90   same surface as v2
-contract v0  0x7438750F9f46Dd0343079A982d3D38641cf72CEe   Heard(uint64 indexed seq, uint32 indexed page, uint8 kind, bytes cipher)
-```
-
-Reading them needs the `conet.v0` domain, the page-keyed keystream
-`SHAKE256(OTP || "conet.v0" || page as u32 BE)`, and their own `Heard` topics;
-nothing else differs.
 
 Station contracts are immutable and the factory has no owner, pause, or upgrade
 path, so a deployed history can never change under you. A future protocol version

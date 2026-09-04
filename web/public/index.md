@@ -83,10 +83,5 @@ errors.
 Frozen and safe to hard-code: the v3 wire protocol and the v3 contract surface,
 including both event topics and every function and error selector.
 Per-deployment and never hard-coded: chainId, factory address, deployment block,
-and every Station address. The same factory address exists on more than one
+and every Station address. The same factory address can exist on more than one
 chain holding unrelated state, so verify `eth_chainId` before anything else.
-
-Three superseded factories remain readable on Base Sepolia under the earlier
-`conet.v0` wire protocol, whose frame byte was 1 and whose keystream took a
-32-bit page. They are listed under Stability in [/skill.md](/skill.md). Nothing
-in them is current.

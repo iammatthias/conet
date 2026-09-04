@@ -12,7 +12,7 @@ import {
   type StationMinted,
 } from "./abi";
 import { chainName, type ServerConfig } from "./config";
-import { factoryFragment, transmissionFragment } from "./html";
+import { escapeHtml, factoryFragment, transmissionFragment } from "./html";
 import { boundedRange, CursorError, parseCursor, selectPage, type Cursor, type Page } from "./paging";
 import type { ChainReader } from "./rpc";
 import { createIndexSource, type IndexSource } from "./index-source";
@@ -72,6 +72,39 @@ const DEPLOYMENT_DOCUMENTS: Readonly<Record<string, { file: string; contentType:
   "/index.md": { file: "index.md", contentType: "text/markdown; charset=utf-8" },
   "/deployment.json": { file: "deployment.json", contentType: "application/json; charset=utf-8" },
 });
+
+const SITEMAP_PATHS: readonly string[] = Object.freeze([
+  "/",
+  "/index.md",
+  "/skill.md",
+  "/llms.txt",
+  "/deployment.json",
+  "/abi/ConetFactory.json",
+  "/abi/Conet.json",
+]);
+
+function requestOrigin(request: Request, url: URL): string {
+  const forwarded = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  return forwarded === "https" || forwarded === "http" ? `${forwarded}://${url.host}` : url.origin;
+}
+
+function sitemapDocument(origin: string): Response {
+  const entries = SITEMAP_PATHS
+    .map((path) => `  <url><loc>${escapeHtml(`${origin}${path}`)}</loc></url>`)
+    .join("\n");
+  return new Response(
+    `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries}\n</urlset>\n`,
+    { headers: { "content-type": "application/xml; charset=utf-8", "cache-control": "no-cache" } },
+  );
+}
+
+async function robotsDocument(config: ServerConfig, origin: string): Promise<Response> {
+  const file = Bun.file(resolve(config.distDir, "robots.txt"));
+  if (!(await file.exists())) throw new RequestError("robots document not found", 404);
+  return new Response(`${(await file.text()).trimEnd()}\n\nSitemap: ${origin}/sitemap.xml\n`, {
+    headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-cache" },
+  });
+}
 
 async function deploymentDocument(config: ServerConfig, pathname: string): Promise<Response> {
   const document = DEPLOYMENT_DOCUMENTS[pathname]!;
@@ -323,6 +356,14 @@ export function createApp(config: ServerConfig, dependencies: AppDependencies): 
 
       if ((request.method === "GET" || request.method === "HEAD") && url.pathname in DEPLOYMENT_DOCUMENTS) {
         const response = await deploymentDocument(config, url.pathname);
+        return request.method === "HEAD" ? new Response(null, { status: response.status, headers: response.headers }) : response;
+      }
+
+      if ((request.method === "GET" || request.method === "HEAD") && (url.pathname === "/sitemap.xml" || url.pathname === "/robots.txt")) {
+        const origin = requestOrigin(request, url);
+        const response = url.pathname === "/sitemap.xml"
+          ? sitemapDocument(origin)
+          : await robotsDocument(config, origin);
         return request.method === "HEAD" ? new Response(null, { status: response.status, headers: response.headers }) : response;
       }
 

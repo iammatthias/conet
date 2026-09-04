@@ -16,7 +16,7 @@ function heard(overrides: Partial<Heard> = {}): Heard {
 
 describe("transmission rows", () => {
   test("link the block, the transaction, and the writer on the explorer", () => {
-    const body = transmissionFragment([heard()], station, "1", cursor, 3n, 2n, "https://explorer.test");
+    const body = transmissionFragment([heard()], station, "1", cursor, 3n, "https://explorer.test");
     expect(body).toContain(`href="https://explorer.test/block/3"`);
     expect(body).toContain(`href="https://explorer.test/tx/${transactionHash}"`);
     expect(body).toContain(`href="https://explorer.test/address/${writer}"`);
@@ -25,7 +25,7 @@ describe("transmission rows", () => {
   });
 
   test("name the writer as text when no explorer is configured", () => {
-    const body = transmissionFragment([heard()], station, "1", cursor, 3n, 2n);
+    const body = transmissionFragment([heard()], station, "1", cursor, 3n);
     expect(body).not.toContain("<a ");
     expect(body).toContain("tx from 0x4444…4444");
   });
@@ -37,7 +37,6 @@ describe("transmission rows", () => {
       hostile,
       cursor,
       3n,
-      2n,
       `https://explorer.test/${hostile}`,
     );
     expect(body).not.toContain(hostile);
@@ -50,8 +49,8 @@ describe("transmission rows", () => {
   });
 
   test("refuse a cipher that is not whole hex bytes instead of rendering it", () => {
-    expect(() => transmissionFragment([heard({ cipher: hostile })], station, "1", cursor, 3n, 2n)).toThrow();
-    expect(() => transmissionFragment([heard({ cipher: "abc" })], station, "1", cursor, 3n, 2n)).toThrow();
+    expect(() => transmissionFragment([heard({ cipher: hostile })], station, "1", cursor, 3n)).toThrow();
+    expect(() => transmissionFragment([heard({ cipher: "abc" })], station, "1", cursor, 3n)).toThrow();
   });
 });
 

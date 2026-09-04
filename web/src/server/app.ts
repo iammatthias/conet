@@ -358,7 +358,7 @@ export function createApp(config: ServerConfig, dependencies: AppDependencies): 
           [HEARD_TOPIC],
           parseHeard,
         );
-        return html(transmissionFragment(page.values, station, mint.stationId.toString(), page.cursor, page.head, mint.blockNumber, config.explorerUrl));
+        return html(transmissionFragment(page.values, station, mint.stationId.toString(), page.cursor, page.head, config.explorerUrl));
       }
 
       if (url.pathname.startsWith("/_tuner/")) {

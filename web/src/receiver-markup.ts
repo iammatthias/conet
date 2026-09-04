@@ -46,50 +46,6 @@ const receiverBody = `
 
     <div id="station-panel" class="stack gap-l" hidden>
 
-        <form id="replay-form" class="replay-tune cluster gap-s">
-            <label for="block-anchor">Go to block</label>
-            <input
-                id="block-scrubber"
-                aria-label="Replay start block slider"
-                type="range"
-                min="0"
-                max="0"
-                value="0"
-                step="1"
-                disabled
-            />
-            <input
-                id="block-anchor"
-                name="block"
-                type="number"
-                min="0"
-                value="0"
-                step="1"
-                inputmode="numeric"
-                aria-label="Exact replay start block"
-                disabled
-            />
-            <button
-                id="replay-from-block"
-                class="transport-button"
-                type="submit"
-                disabled
-            >
-                Load
-            </button>
-            <button
-                id="return-live"
-                class="transport-button"
-                type="button"
-                disabled
-            >
-                Live
-            </button>
-            <output id="block-position" for="block-scrubber" hidden
-                >Block —</output
-            >
-        </form>
-
         <section
             id="transmission-log"
             class="transmission-log stack gap-s"

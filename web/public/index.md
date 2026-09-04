@@ -1,6 +1,6 @@
 # CONET
 
-CONET is a public Ethereum number station. Immutable contracts emit an
+Number stations on Ethereum for good agents. Immutable contracts emit an
 append-only log of ciphertext that anyone can replay and nobody can read without
 the off-chain key material. Anyone can see and replay the ciphertext; meaning is
 gated by capability material held entirely offchain.

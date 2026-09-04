@@ -56,12 +56,6 @@ export function mountReceiver(root: ParentNode, options: ReceiverOptions): Recei
   const transmissionLog = element<HTMLElement>("transmission-log");
   const transmissionCount = element<HTMLOutputElement>("transmission-count");
   const stationList = element<HTMLDivElement>("station-list");
-  const replayForm = element<HTMLFormElement>("replay-form");
-  const blockScrubber = element<HTMLInputElement>("block-scrubber");
-  const blockAnchor = element<HTMLInputElement>("block-anchor");
-  const blockPosition = element<HTMLOutputElement>("block-position");
-  const replayFromBlock = element<HTMLButtonElement>("replay-from-block");
-  const returnLive = element<HTMLButtonElement>("return-live");
 
   let explorerUrl = options.explorerUrl;
   let tunedStation = "";
@@ -75,8 +69,6 @@ export function mountReceiver(root: ParentNode, options: ReceiverOptions): Recei
   let factoryAbort: AbortController | undefined;
   let transmissionCursor = "";
   let pollTimer: number | undefined;
-  let requestMode: "catchup" | "live" | "replay" = "catchup";
-  let replayAnchor = 0;
   let receiverEpoch = 0;
   let factoryCursor = "";
   let factoryPollTimer: number | undefined;
@@ -105,32 +97,6 @@ export function mountReceiver(root: ParentNode, options: ReceiverOptions): Recei
   frequencyDial.addEventListener("change", commitDialTune);
   frequencyDial.addEventListener("pointerdown", () => {
     dialPointerActive = true;
-  });
-
-  blockScrubber.addEventListener("input", () => {
-    blockAnchor.value = blockScrubber.value;
-    blockPosition.value = `Block ${blockScrubber.value}`;
-  });
-
-  blockAnchor.addEventListener("input", () => {
-    const block = Number.parseInt(blockAnchor.value, 10);
-    if (!Number.isSafeInteger(block)) return;
-    const minimum = Number.parseInt(blockScrubber.min, 10);
-    const maximum = Number.parseInt(blockScrubber.max, 10);
-    if (block >= minimum && block <= maximum) blockScrubber.value = String(block);
-    blockPosition.value = `Block ${blockAnchor.value || "—"}`;
-  });
-
-  replayForm.addEventListener("submit", (event) => {
-    event.preventDefault();
-    if (!tunedStation || blockScrubber.disabled) return;
-    const block = Number.parseInt(blockAnchor.value, 10);
-    if (!Number.isSafeInteger(block) || block < 0) return;
-    replayFrom(block);
-  });
-
-  returnLive.addEventListener("click", () => {
-    if (tunedStation) tune(tunedStation);
   });
 
   const onPageShow = (event: Event) => {
@@ -173,7 +139,6 @@ export function mountReceiver(root: ParentNode, options: ReceiverOptions): Recei
     highestSeenSequence = 0n;
     latestTransmission = undefined;
     transmissionCursor = "";
-    requestMode = "catchup";
     if (pollTimer !== undefined) window.clearTimeout(pollTimer);
     pollTimer = undefined;
     if (stationInput) stationInput.value = station;
@@ -182,11 +147,6 @@ export function mountReceiver(root: ParentNode, options: ReceiverOptions): Recei
     if (transmissionBody.querySelector("[data-transmission]")) setLogBusy(true);
     else showTransmissionPlaceholder("Tuning…");
     transmissionCount.value = "…";
-    blockScrubber.disabled = true;
-    blockAnchor.disabled = true;
-    replayFromBlock.disabled = true;
-    returnLive.disabled = true;
-    blockPosition.value = "Block —";
     setReceiverState("Tuning…");
     updateFrequencyDial();
     requestTransmissions();
@@ -374,9 +334,7 @@ export function mountReceiver(root: ParentNode, options: ReceiverOptions): Recei
     baselineEstablished = false;
     highestSeenSequence = 0n;
     latestTransmission = undefined;
-    replayAnchor = 0;
     transmissionCursor = "";
-    requestMode = "catchup";
 
     if (stationInput) stationInput.value = "";
     stationPanel.hidden = true;
@@ -384,19 +342,6 @@ export function mountReceiver(root: ParentNode, options: ReceiverOptions): Recei
     setLogBusy(false);
     transmissionCount.value = "0";
     showTransmissionPlaceholder("Choose a frequency or enter a Station address.");
-
-    blockScrubber.min = "0";
-    blockScrubber.max = "0";
-    blockScrubber.value = "0";
-    blockScrubber.disabled = true;
-    blockAnchor.min = "0";
-    blockAnchor.removeAttribute("max");
-    blockAnchor.value = "0";
-    blockAnchor.disabled = true;
-    replayFromBlock.disabled = true;
-    returnLive.disabled = true;
-    blockPosition.value = "Block —";
-
     setReceiverState("Not tuned");
     updateFrequencyReadout();
   }
@@ -412,7 +357,7 @@ export function mountReceiver(root: ParentNode, options: ReceiverOptions): Recei
     transmissionBody.textContent = message;
   }
 
-  function ingestTransmissions(target: HTMLElement, html: string, replace: boolean): void {
+  function ingestTransmissions(target: HTMLElement, html: string): void {
     const template = document.createElement("template");
     template.innerHTML = html;
     const cursorMarker = Array.from(
@@ -420,17 +365,15 @@ export function mountReceiver(root: ParentNode, options: ReceiverOptions): Recei
     ).at(-1);
     const cursor = cursorMarker?.dataset.transmissionCursor;
     const chainHead = cursorMarker?.dataset.chainHead;
-    const scanFloor = cursorMarker?.dataset.scanFloor;
 
-    if (requestMode !== "replay" && cursor) transmissionCursor = cursor;
+    if (cursor) transmissionCursor = cursor;
 
     const incoming = Array.from(template.content.querySelectorAll<HTMLElement>("[data-transmission]"))
       .map((row) => ({ row, item: readTransmission(row) }))
       .filter((entry): entry is { row: HTMLElement; item: Transmission } => entry.item !== undefined)
       .sort((a, b) => bySequence(a.item, b.item));
 
-    if (replace) target.replaceChildren();
-    else if (incoming.length > 0 && !target.querySelector("[data-transmission]")) target.replaceChildren();
+    if (incoming.length > 0 && !target.querySelector("[data-transmission]")) target.replaceChildren();
     const shown = new Map(
       Array.from(target.querySelectorAll<HTMLElement>("[data-transmission]")).map((row) => [row.dataset.seq ?? "", row] as const),
     );
@@ -455,40 +398,6 @@ export function mountReceiver(root: ParentNode, options: ReceiverOptions): Recei
       .sort(bySequence);
     latestTransmission = parsed.at(-1);
 
-    const head = chainHead && /^\d+$/.test(chainHead) ? Number.parseInt(chainHead, 10) : undefined;
-    const floor = scanFloor && /^\d+$/.test(scanFloor) ? Number.parseInt(scanFloor, 10) : undefined;
-    if (head !== undefined && floor !== undefined && Number.isSafeInteger(head) && Number.isSafeInteger(floor)) {
-      blockScrubber.min = String(floor);
-      blockScrubber.max = String(head);
-      blockAnchor.min = String(floor);
-      blockAnchor.max = String(head);
-      if (requestMode !== "replay") {
-        blockScrubber.value = String(head);
-        blockAnchor.value = String(head);
-        blockPosition.value = `Block ${head}`;
-      }
-    }
-
-    if (requestMode === "replay") {
-      if (parsed.length === 0 && cursor && head !== undefined) {
-        const nextBlock = Number.parseInt(cursor.split(":", 1)[0], 10);
-        if (Number.isSafeInteger(nextBlock) && nextBlock <= head) {
-          requestReplayPage(cursor);
-          return;
-        }
-      }
-      if (parsed.length === 0) showTransmissionPlaceholder(`No transmission at or after block ${replayAnchor}`);
-      transmissionCount.value = String(parsed.length);
-      setLogBusy(false);
-      setReceiverState(
-        parsed.length > 0
-          ? `Replay · block ${replayAnchor} · seq ${parsed[0].seq}`
-          : `No transmission at or after block ${replayAnchor}`,
-        "ready",
-      );
-      return;
-    }
-
     if (!baselineEstablished) {
       const cursorBlock = cursor ? BigInt(cursor.split(":", 1)[0]) : 0n;
       const headBigInt = chainHead && /^\d+$/.test(chainHead) ? BigInt(chainHead) : undefined;
@@ -501,9 +410,6 @@ export function mountReceiver(root: ParentNode, options: ReceiverOptions): Recei
       baselineEstablished = true;
       highestSeenSequence = latestTransmission?.seq ?? 0n;
       presentStagedTransmissions();
-      blockScrubber.disabled = false;
-      blockAnchor.disabled = false;
-      replayFromBlock.disabled = false;
       setReceiverState(latestTransmission ? "Tuned" : "Tuned · carrier quiet", "ready");
       schedulePoll(4_000);
       return;
@@ -533,7 +439,7 @@ export function mountReceiver(root: ParentNode, options: ReceiverOptions): Recei
     transmissionLog.setAttribute("aria-busy", String(busy));
   }
 
-  function requestTransmissionPage(path: string, target: HTMLElement, replace: boolean): void {
+  function requestTransmissionPage(path: string, target: HTMLElement): void {
     abortTransmissionRequest();
     const epoch = receiverEpoch;
     const controller = new AbortController();
@@ -541,7 +447,7 @@ export function mountReceiver(root: ParentNode, options: ReceiverOptions): Recei
     fragment(path, controller.signal)
       .then((html) => {
         if (epoch !== receiverEpoch) return;
-        ingestTransmissions(target, html, replace);
+        ingestTransmissions(target, html);
       })
       .catch((error: unknown) => {
         if (epoch !== receiverEpoch) return;
@@ -563,33 +469,10 @@ export function mountReceiver(root: ParentNode, options: ReceiverOptions): Recei
 
   function requestTransmissions(): void {
     if (!tunedStation) return;
-    requestMode = baselineEstablished ? "live" : "catchup";
     const cursor = transmissionCursor ? `&cursor=${encodeURIComponent(transmissionCursor)}` : "";
     requestTransmissionPage(
       `/_tuner/stations/${encodeURIComponent(tunedStation)}/transmissions?limit=${MAX_DOM_TRANSMISSIONS}${cursor}`,
       baselineEstablished ? transmissionBody : transmissionStaging,
-      false,
-    );
-  }
-
-  function replayFrom(block: number): void {
-    if (pollTimer !== undefined) window.clearTimeout(pollTimer);
-    pollTimer = undefined;
-    abortTransmissionRequest();
-    receiverEpoch += 1;
-    replayAnchor = block;
-    returnLive.disabled = false;
-    setLogBusy(true);
-    setReceiverState(`Finding transmissions from block ${block}…`);
-    requestReplayPage(`${block}:-1`);
-  }
-
-  function requestReplayPage(cursor: string): void {
-    requestMode = "replay";
-    requestTransmissionPage(
-      `/_tuner/stations/${encodeURIComponent(tunedStation)}/transmissions?limit=${MAX_DOM_TRANSMISSIONS}&cursor=${encodeURIComponent(cursor)}`,
-      transmissionBody,
-      true,
     );
   }
 

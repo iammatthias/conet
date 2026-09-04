@@ -40,7 +40,6 @@ export function transmissionFragment(
   stationId: string,
   cursor: Cursor,
   head: bigint,
-  scanFloor: bigint,
   explorerUrl?: string,
 ): string {
   const explorerLink = (path: string, label: string, aria: string, className: string) =>
@@ -64,5 +63,5 @@ export function transmissionFragment(
       `<span class="groups">${groups.join(" ")}</span> ` +
       `</span>`;
   }).join("");
-  return `${entries}<span hidden data-transmission-cursor="${escapeHtml(formatCursor(cursor))}" data-chain-head="${head}" data-scan-floor="${scanFloor}"></span>`;
+  return `${entries}<span hidden data-transmission-cursor="${escapeHtml(formatCursor(cursor))}" data-chain-head="${head}"></span>`;
 }

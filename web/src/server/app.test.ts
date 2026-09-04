@@ -358,7 +358,6 @@ describe("Bun Station server", () => {
     const heardCall = chain.logCalls.find((call) => call.topics[0] === HEARD_TOPIC);
     expect(heardCall?.fromBlock).toBe(5n);
     const body = await response.text();
-    expect(body).toContain("data-scan-floor=\"5\"");
     expect(body).toContain("data-block=\"6\"");
   });
 
@@ -415,7 +414,6 @@ describe("Bun Station server", () => {
     expect(body).toContain(`data-station=\"${station}\"`);
     expect(body).toContain("data-seq=\"1\"");
     expect(body).toContain("data-block=\"3\"");
-    expect(body).toContain("data-scan-floor=\"2\"");
     expect(body).toContain("data-cipher=\"00ff7f\"");
     expect(body).toContain("data-station-id=\"1\"");
     expect(body).toContain("data-group-count=\"1\"");
@@ -487,7 +485,7 @@ describe("Station provenance", () => {
     expect(response.status).toBe(200);
     expect(chain.registryCalls).toEqual([station]);
     expect(chain.logCalls.map((call) => call.address)).toEqual([station]);
-    expect(await response.text()).toContain("data-scan-floor=\"2\"");
+    expect(await response.text()).toContain(`data-station="${station}"`);
   });
 
   test("scans the chain when the index names a different Station id", async () => {
@@ -497,7 +495,7 @@ describe("Station provenance", () => {
 
     expect(response.status).toBe(200);
     expect(chain.logCalls.map((call) => call.address)).toEqual([factory, station]);
-    expect(await response.text()).toContain("data-scan-floor=\"2\"");
+    expect(await response.text()).toContain(`data-station="${station}"`);
   });
 
   test("lists index rows without letting them stand in for provenance", async () => {

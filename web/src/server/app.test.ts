@@ -20,6 +20,7 @@ const factory = "0x3333333333333333333333333333333333333333";
 const writer = "0x4444444444444444444444444444444444444444";
 const word = (value: bigint) => value.toString(16).padStart(64, "0");
 const transmissionsPath = `/_tuner/stations/${station}/transmissions`;
+const flowed = (text: string) => text.replace(/\s+/g, " ");
 
 const config = (): ServerConfig => ({
   rpcUrl: "http://configured.invalid",
@@ -162,6 +163,51 @@ describe("Bun Station server", () => {
     expect(skill).toContain(`factory: ${factory}`);
     expect(skill).toContain("factory deployment block: 2");
     expect(skill).not.toContain("{{");
+    rmSync(distDir, { recursive: true, force: true });
+  });
+
+  test("serves every answer surface with this deployment's coordinates and no surviving placeholder", async () => {
+    const distDir = `${import.meta.dir}/../../node_modules/.cache/answer-surface-test`;
+    const { mkdirSync, rmSync, copyFileSync } = await import("node:fs");
+    rmSync(distDir, { recursive: true, force: true });
+    mkdirSync(distDir, { recursive: true });
+    for (const name of ["index.md", "deployment.json", "llms.txt"]) {
+      copyFileSync(`${import.meta.dir}/../../public/${name}`, `${distDir}/${name}`);
+    }
+    copyFileSync(`${import.meta.dir}/../../index.html`, `${distDir}/index.html`);
+    const chain = fakeChain([]);
+    const app = createApp({ ...config(), distDir, explorerUrl: "https://explorer.test" }, { chain });
+
+    const deployment = await app(new Request("http://local/deployment.json"));
+    expect(deployment.status).toBe(200);
+    expect(deployment.headers.get("content-type")).toContain("application/json");
+    const coordinates = JSON.parse(await deployment.text()) as {
+      deployment: { chainId: number; chainName: string; factory: string; factoryDeploymentBlock: number };
+      v3: { factory: { address: string }; eventTopics: { Heard: string } };
+      protocol: string;
+    };
+    expect(coordinates.deployment).toEqual({ chainId: 31_337, chainName: "Anvil", factory, factoryDeploymentBlock: 2 });
+    expect(coordinates.v3.factory.address.toLowerCase()).toBe("0xb084351e5fd70d318a2264bc8af63c4575db8844");
+    expect(coordinates.v3.eventTopics.Heard).toBe(HEARD_TOPIC);
+    expect(coordinates.protocol).toBe("/skill.md");
+
+    const overview = await app(new Request("http://local/index.md"));
+    expect(overview.status).toBe(200);
+    expect(overview.headers.get("content-type")).toContain("text/markdown");
+    const overviewText = await overview.text();
+    expect(flowed(overviewText)).toContain(`Anvil, chainId 31337 \u00b7 factory \`${factory}\` \u00b7 from block 2`);
+    expect(overviewText).not.toContain("{{");
+
+    const page = await app(new Request("http://local/"));
+    const pageText = await page.text();
+    expect(flowed(pageText)).toContain(`Anvil, chainId 31337 \u00b7 factory <code>${factory}</code>`);
+    expect(pageText).not.toContain("{{");
+
+    const llms = await app(new Request("http://local/llms.txt"));
+    expect(llms.status).toBe(200);
+    expect(await llms.text()).toContain("/skill.md");
+
+    expect(chain.reads).toEqual([]);
     rmSync(distDir, { recursive: true, force: true });
   });
 

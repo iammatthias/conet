@@ -40,11 +40,28 @@ body {
 }
 
 body .site-header,
+body .definition,
 body .frequency-tuner,
 body .replay-tune,
 body .direct-tune,
 body footer {
   max-inline-size: var(--column);
+}
+
+.definition .lede {
+  text-wrap: pretty;
+}
+
+.definition .facts {
+  font-family: var(--data-font);
+  font-size: 0.75rem;
+  line-height: 1.7;
+  color: var(--ink-muted);
+  text-wrap: pretty;
+}
+
+.definition .facts code {
+  overflow-wrap: anywhere;
 }
 
 .wordmark {

@@ -11,7 +11,7 @@ import {
   type RpcLog,
   type StationMinted,
 } from "./abi";
-import type { ServerConfig } from "./config";
+import { chainName, type ServerConfig } from "./config";
 import { factoryFragment, transmissionFragment } from "./html";
 import { boundedRange, CursorError, parseCursor, selectPage, type Cursor, type Page } from "./paging";
 import type { ChainReader } from "./rpc";
@@ -59,18 +59,26 @@ function problem(request: Request, error: RequestError | Error): Response {
   );
 }
 
-async function skillDocument(config: ServerConfig): Promise<Response> {
-  const file = Bun.file(resolve(config.distDir, "skill.md"));
-  if (!(await file.exists())) throw new RequestError("skill document not found", 404);
-  const text = (await file.text())
+function withDeployment(config: ServerConfig, text: string): string {
+  return text
     .replaceAll("{{chainId}}", String(config.chainId))
+    .replaceAll("{{chainName}}", chainName(config.chainId))
     .replaceAll("{{factoryAddress}}", config.factoryAddress)
     .replaceAll("{{factoryBlock}}", String(config.factoryBlock));
-  return new Response(text, {
-    headers: {
-      "content-type": "text/markdown; charset=utf-8",
-      "cache-control": "no-cache",
-    },
+}
+
+const DEPLOYMENT_DOCUMENTS: Readonly<Record<string, { file: string; contentType: string }>> = Object.freeze({
+  "/skill.md": { file: "skill.md", contentType: "text/markdown; charset=utf-8" },
+  "/index.md": { file: "index.md", contentType: "text/markdown; charset=utf-8" },
+  "/deployment.json": { file: "deployment.json", contentType: "application/json; charset=utf-8" },
+});
+
+async function deploymentDocument(config: ServerConfig, pathname: string): Promise<Response> {
+  const document = DEPLOYMENT_DOCUMENTS[pathname]!;
+  const file = Bun.file(resolve(config.distDir, document.file));
+  if (!(await file.exists())) throw new RequestError(`${document.file} not found`, 404);
+  return new Response(withDeployment(config, await file.text()), {
+    headers: { "content-type": document.contentType, "cache-control": "no-cache" },
   });
 }
 
@@ -227,7 +235,7 @@ async function indexDocument(config: ServerConfig): Promise<Response> {
   const explorer = config.explorerUrl
     ? `<a href="${config.explorerUrl}/address/${config.factoryAddress}">Explorer</a>`
     : "";
-  const text = (await file.text())
+  const text = withDeployment(config, await file.text())
     .replaceAll("{{explorerLink}}", explorer)
     .replaceAll("{{explorerUrl}}", config.explorerUrl ?? "");
   return new Response(text, {
@@ -313,8 +321,8 @@ export function createApp(config: ServerConfig, dependencies: AppDependencies): 
         return request.method === "HEAD" ? new Response(null, { status: response.status, headers: response.headers }) : response;
       }
 
-      if ((request.method === "GET" || request.method === "HEAD") && url.pathname === "/skill.md") {
-        const response = await skillDocument(config);
+      if ((request.method === "GET" || request.method === "HEAD") && url.pathname in DEPLOYMENT_DOCUMENTS) {
+        const response = await deploymentDocument(config, url.pathname);
         return request.method === "HEAD" ? new Response(null, { status: response.status, headers: response.headers }) : response;
       }
 

@@ -45,6 +45,16 @@ const surfaces: Record<string, Pin[]> = {
     "targetRuntimeHash",
     "chainId",
   ],
+  "web/public/deployment.json": [
+    "factoryAddress",
+    "targetAddress",
+    "factorySalt",
+    "targetSalt",
+    "factoryInitCodeHash",
+    "factoryRuntimeHash",
+    "targetInitCodeHash",
+    "targetRuntimeHash",
+  ],
   "web/README.md": ["factoryAddress", "factoryBlock"],
   "indexer/README.md": ["factoryAddress", "factoryBlock"],
   "eth/README.md": [

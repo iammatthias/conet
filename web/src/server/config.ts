@@ -43,6 +43,18 @@ const KNOWN_EXPLORERS: Readonly<Record<number, string>> = Object.freeze({
   11155111: "https://sepolia.etherscan.io",
 });
 
+const KNOWN_CHAIN_NAMES: Readonly<Record<number, string>> = Object.freeze({
+  1: "Ethereum",
+  8453: "Base",
+  84532: "Base Sepolia",
+  11155111: "Sepolia",
+  31337: "Anvil",
+});
+
+export function chainName(chainId: number): string {
+  return KNOWN_CHAIN_NAMES[chainId] ?? `chain ${chainId}`;
+}
+
 function explorer(value: string | undefined, chainId: number): string | undefined {
   const configured = value?.replace(/\/+$/, "");
   if (configured) {

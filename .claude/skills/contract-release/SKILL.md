@@ -54,8 +54,9 @@ make abi-check     # web/public/abi/*.json match the compiled contracts
    `web/public/skill.md` (pin block, event layouts, vector 4 if the event
    changed, Stability), `README.md` (live deployment table and the version
    narrative), `.env.example`, `eth/README.md`, `eth/PROTOCOL.md`,
-   `web/README.md`, `indexer/README.md`. Move the superseded version into the
-   "superseded" notes rather than deleting it; old Stations keep existing.
+   `web/README.md`, `indexer/README.md`. Everything under `web/public/`
+   describes the live deployment only: remove the retired version's coordinates
+   there rather than listing them as superseded.
 6. `make test`.
 7. Deploy (below) and record the receipt.
 
@@ -63,8 +64,8 @@ make abi-check     # web/public/abi/*.json match the compiled contracts
 
 Unchanged source bytes land at the pinned addresses on every chain that has the
 canonical CREATE2 proxy at `0x4e59b44847b379578588920cA78FbF26c0B4956C`, so
-bringing an existing version up on a new chain (Base mainnet after Base Sepolia,
-say) changes coordinates, not addresses. Before broadcasting: `cast code` on the
+bringing an existing version up on a new chain changes coordinates, not
+addresses. Before broadcasting: `cast code` on the
 proxy is non-empty, `cast code` on both pinned addresses is empty, and the
 deployer holds gas.
 

@@ -25,7 +25,7 @@ describe("five-figure observer encoding", () => {
     expect(cipherFromFiveFigureGroups(groups, 2_048)).toBe(cipher);
   });
 
-  test("matches the frozen conet.v0 ciphertext vector", () => {
+  test("matches the frozen ciphertext vector", () => {
     expect(fiveFigureGroups("bbd426c5145db56ab32018c9536d3de34312259caeddb9f7")).toEqual([
       "00460", "55467", "29707", "23258", "91446", "08723",
       "04986", "07783", "05245", "51926", "14203", "37655",

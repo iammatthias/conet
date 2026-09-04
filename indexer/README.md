@@ -108,8 +108,8 @@ error message, is halved and retried inside the same window, so the block range
 is not narrowed for a limit it did not hit. Scan windows themselves shrink on
 other RPC failures and grow back on success, so a provider tightening its limits
 degrades throughput instead of stalling the index. Both paths are exercised
-against live providers: base-sepolia publicnode requires the address filter and
-rejects large address lists, while sepolia.base.org accepts topic-only scans.
+against live providers: some require the address filter and reject large
+address lists, while others accept topic-only scans.
 
 Sync errors back off exponentially with jitter, from about a second up to a
 minute, and the backoff resets on the next successful pass.

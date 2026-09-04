@@ -141,9 +141,9 @@ agent could use that the page does not already expose.
 Every on-chain reference the tuner renders points back at a block explorer: the
 factory in the footer, the tuned Station's address, and each transmission's block,
 transaction, and writer — the one authenticated fact a transmission carries. `STATION_EXPLORER_URL` sets the origin; without it the tuner
-derives one from the configured chain id for Base, Base Sepolia, Ethereum and
-Sepolia, and omits the links entirely on a chain it does not recognise rather
-than emitting a broken host.
+derives one from the configured chain id for the chains it knows, and omits the
+links entirely on a chain it does not recognise rather than emitting a broken
+host.
 
 This exists so a reader never has to take the tuner's word for anything. Every
 claim it renders about the chain is one click from the chain itself.
@@ -199,8 +199,8 @@ section, because those coordinates do not live in an ABI. The v3 factory is
 deployed through the canonical CREATE2 deployer under the fixed
 `keccak256("conet.factory.v3")` salt with pinned init code, so it resolves to
 `0xB084351e5Fd70d318a2264Bc8af63C4575Db8844` on compatible chains; on Base
-mainnet it was deployed at block 50801478, on Base Sepolia at block 46302748. The
-same address does not imply shared state. Agents choose their own RPC, verify its
+mainnet it was deployed at block 50801478. The same address on another chain
+does not imply shared state. Agents choose their own RPC, verify its
 chain ID, sign their own transactions, scan `StationMinted` and `Heard` with
 `eth_getLogs`, and keep OTP bytes offchain. The wire protocol they implement is
 `conet.v3`, specified once in the served skill; the tuner never derives a

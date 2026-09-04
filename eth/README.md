@@ -29,9 +29,6 @@ Run Foundry commands from `eth/`. Run `make` targets from the repository root.
 - `test/` — dependency-free Foundry tests with hand-rolled asserts: the log's
   behaviour and boundaries, every contract error, clone and provenance
   semantics, and the deployment pins. Fuzz tests run 1,000 cases by default.
-- `book/v2-station-1-broadcast.html` — the 9,219-byte GitBook application
-  shell that a fetch of a BRC-20 experiment page returned, broadcast byte for
-  byte as the content of v2 Station 1 on Base Sepolia and kept unchanged.
 
 ## Requirements and test
 
@@ -68,19 +65,7 @@ code. A chain without the verified proxy, a chain that cannot execute the
 pinned bytecode, or a build with different compiler settings is not compatible
 with this rendezvous. The same address on another chain shares no state, so
 every deployment record carries chainId and the factory's deployment block.
-Base mainnet and Base Sepolia coordinates are in the repository README and
-`.env.example`.
-
-Three superseded factories remain live and readable on Base Sepolia, all on
-the earlier `conet.v0` wire protocol with a contract-enforced 32-bit page in
-place of the nonce. Contract v2 at `0xd5676C7023Ee15C369Ae3227e98A39F476527D90` (block 46262521)
-and contract v1 at `0x650F2E809F725944A345AC190470230251B2AB90` (block
-46257236) share one surface,
-`Heard(uint64 indexed seq, address indexed writer, uint32 page, uint8 kind, bytes cipher)`;
-contract v0 at `0x7438750F9f46Dd0343079A982d3D38641cf72CEe` (block 46234015)
-minted full contracts rather than clones and emitted
-`Heard(uint64 indexed seq, uint32 indexed page, uint8 kind, bytes cipher)`.
-Each factory's `stationId` answers zero for the others' Stations.
+Base mainnet coordinates are in the repository README and `.env.example`.
 
 ## Local Anvil workflow
 

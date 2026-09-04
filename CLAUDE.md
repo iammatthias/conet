@@ -65,8 +65,10 @@ them.
   passes.
 - Every version identifier reads v3: contracts, salts, `conet.v3` keystream
   domain, frame format byte, observer domain. v3 replaced the contract-enforced
-  page with a 64-bit random nonce. The v0, v1, and v2 factories and their
-  Stations still exist on Base Sepolia under `conet.v0` and are read with the
-  old topics and keystream.
+  page with a 64-bit random nonce.
+- Everything conet.fm serves describes the live Base mainnet deployment only:
+  no testnet coordinates, no superseded factories, no `conet.v0`. Retiring a
+  version means removing its coordinates from `web/public/`, never listing them
+  there as superseded.
 - Foundry tests are dependency-free by design (hand-rolled asserts, no
   forge-std); keep it that way.

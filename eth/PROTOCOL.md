@@ -107,41 +107,22 @@ factory, and Station address so material reuse degrades to a shared capability
 instead of a break. Both must stay backward-readable and cannot mutate an
 existing Station's history.
 
-## Contract versions
+## Version
 
-Every identifier in the system now carries one version, v3: the CREATE2
-salts, the `conet.v3` keystream domain, the frame's format byte, and the
-observer domain. Before v3 the wire protocol was `conet.v0` under three
-contract versions, each a new pair of CREATE2 addresses, because a deployed
-source cannot change by a byte.
+Every identifier in the system carries one version, v3: the CREATE2 salts, the
+`conet.v3` keystream domain, the frame's format byte, and the observer domain.
 
-**v0** minted full `Conet` contracts and indexed the page in `Heard`. Every
-adversarial run happened against it.
+The whole write surface is `append(uint64 nonce, uint8 kind, bytes cipher)` and
+a Station's whole state is `factory` and `seq`. The 64-bit nonce replaced an
+earlier contract-enforced page: a page had to be unique per Station, so choosing
+one needed a keyed content-derived rule and a retry loop, and reserving page
+space invited squatting and mempool front-running. A nonce drawn from a CSPRNG
+separates keystreams just as well, needs no contract state, and reserves
+nothing, so an append costs no storage.
 
-**v1** answered defects the adversarial runs found. `Heard` indexes the writer
-instead of the page: every run had converged on `msg.sender` as the only
-authenticated field in the system, it was the one field the event omitted, and
-recovering it cost a transaction lookup per event. Stations became clones of one
-immutable target, cutting a mint from about 217k gas to about 117k and reducing
-"verify a foundation" to checking one contract. `stationId(address)` answers
-provenance in one call instead of a registry scan whose cost grew with chain
-age.
-
-**v2** changed no behaviour. It corrected the deployed NatSpec, which called
-the target inert when the target accepts appends and merely fails provenance,
-renamed the clone-failure error to `CloneFailed`, and removed the explanatory
-comments from the deployed sources so the served skill is the single
-description.
-
-**v3** is the first wire-protocol change and it removes the page. Under
-`conet.v0` a 32-bit page selected the keystream, the contract enforced it
-unique per Station, and a keyed content-derived rule chose it, which brought a
-retry loop, a squatting attack, a mempool front-running attack, and a page-space
-accounting rule. A 64-bit nonce drawn from a CSPRNG separates keystreams just
-as well, needs no contract state, and cannot be squatted because nothing is
-reserved. `append(uint64 nonce, uint8 kind, bytes cipher)` is the whole write
-surface, the Station's state is `factory` and `seq`, and the frame's format
-byte moved to 3 so the protocol names itself.
+A deployed source cannot change by a byte, so a future change arrives as a new
+pair of CREATE2 addresses behind a new keystream domain, never as an edit to
+this one.
 
 ## Deferred classes
 

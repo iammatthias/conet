@@ -38,6 +38,7 @@ export function transmissionFragment(
   transmissions: Heard[],
   station: string,
   stationId: string,
+  creator: string,
   cursor: Cursor,
   head: bigint,
   explorerUrl?: string,
@@ -53,13 +54,16 @@ export function transmissionFragment(
     const groups = fiveFigureGroups(event.cipher);
     const sequence = event.seq.toString().padStart(6, "0");
     const writer = escapeHtml(event.writer);
+    const sequenceMark = `<b class="seq">${sequence}</b>`;
+    const sequenceLink = event.transactionHash
+      ? explorerLink(`tx/${escapeHtml(event.transactionHash)}`, sequenceMark, `Transaction for sequence ${event.seq} on the block explorer`, "chain-link")
+      : sequenceMark;
     const blockLink = explorerLink(`block/${event.blockNumber}`, String(event.blockNumber), `Block ${event.blockNumber} on the block explorer`, "chain-link");
-    const transactionLink = event.transactionHash
-      ? ` ${explorerLink(`tx/${escapeHtml(event.transactionHash)}`, "tx", `Transaction for sequence ${event.seq} on the block explorer`, "chain-link meta")}`
-      : "";
-    const writerLink = ` ${explorerLink(`address/${writer}`, `from ${escapeHtml(shortAddress(event.writer))}`, `Writer ${writer} of sequence ${event.seq} on the block explorer`, "chain-link meta")}`;
+    const writerLink = event.writer.toLowerCase() === creator.toLowerCase()
+      ? ""
+      : ` ${explorerLink(`address/${writer}`, `from ${escapeHtml(shortAddress(event.writer))}`, `Writer ${writer} of sequence ${event.seq} on the block explorer`, "chain-link meta")}`;
     return `<span data-transmission data-station="${safeStation}" data-station-id="${safeStationId}" data-seq="${event.seq}" data-block="${event.blockNumber}" data-nonce="${event.nonce.toString(16).padStart(16, "0")}" data-kind="${event.kind}" data-byte-count="${event.cipher.length / 2}" data-group-count="${groups.length}" data-cipher="${cipher}">` +
-      `<b class="seq">${sequence}</b> ${blockLink}${transactionLink}${writerLink} ` +
+      `${sequenceLink} ${blockLink}${writerLink} ` +
       `<span class="groups">${groups.join(" ")}</span> ` +
       `</span>`;
   }).join("");

@@ -15,19 +15,29 @@ function heard(overrides: Partial<Heard> = {}): Heard {
 }
 
 describe("transmission rows", () => {
-  test("link the block, the transaction, and the writer on the explorer", () => {
-    const body = transmissionFragment([heard()], station, "1", cursor, 3n, "https://explorer.test");
+  test("link the sequence to its transaction and the block to its block", () => {
+    const body = transmissionFragment([heard({ writer: creator })], station, "1", creator, cursor, 3n, "https://explorer.test");
+    expect(body).toContain(`href="https://explorer.test/tx/${transactionHash}" target="_blank" rel="noreferrer noopener" aria-label="Transaction for sequence 1 on the block explorer"><b class="seq">000001</b></a>`);
     expect(body).toContain(`href="https://explorer.test/block/3"`);
-    expect(body).toContain(`href="https://explorer.test/tx/${transactionHash}"`);
+  });
+
+  test("leave the creator's own transmissions unattributed", () => {
+    const body = transmissionFragment([heard({ writer: creator })], station, "1", creator.toUpperCase().replace("0X", "0x"), cursor, 3n, "https://explorer.test");
+    expect(body).not.toContain("/address/");
+    expect(body).not.toContain(">from ");
+  });
+
+  test("name any other writer on the explorer", () => {
+    const body = transmissionFragment([heard()], station, "1", creator, cursor, 3n, "https://explorer.test");
     expect(body).toContain(`href="https://explorer.test/address/${writer}"`);
     expect(body).toContain(">from 0x4444…4444</a>");
     expect(body).toContain(`aria-label="Writer ${writer} of sequence 1 on the block explorer"`);
   });
 
-  test("name the writer as text when no explorer is configured", () => {
-    const body = transmissionFragment([heard()], station, "1", cursor, 3n);
+  test("render the row as text when no explorer is configured", () => {
+    const body = transmissionFragment([heard()], station, "1", creator, cursor, 3n);
     expect(body).not.toContain("<a ");
-    expect(body).toContain("tx from 0x4444…4444");
+    expect(body).toContain(`<b class="seq">000001</b> 3 from 0x4444…4444 <span class="groups">65407</span>`);
   });
 
   test("escape every interpolated field", () => {
@@ -35,6 +45,7 @@ describe("transmission rows", () => {
       [heard({ writer: `0x${hostile}${hostile}`, transactionHash: hostile })],
       hostile,
       hostile,
+      creator,
       cursor,
       3n,
       `https://explorer.test/${hostile}`,
@@ -49,8 +60,8 @@ describe("transmission rows", () => {
   });
 
   test("refuse a cipher that is not whole hex bytes instead of rendering it", () => {
-    expect(() => transmissionFragment([heard({ cipher: hostile })], station, "1", cursor, 3n)).toThrow();
-    expect(() => transmissionFragment([heard({ cipher: "abc" })], station, "1", cursor, 3n)).toThrow();
+    expect(() => transmissionFragment([heard({ cipher: hostile })], station, "1", creator, cursor, 3n)).toThrow();
+    expect(() => transmissionFragment([heard({ cipher: "abc" })], station, "1", creator, cursor, 3n)).toThrow();
   });
 });
 

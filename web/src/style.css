@@ -523,7 +523,8 @@ footer a {
   display: none;
 }
 
-.chain-router summary::before {
+.chain-router > summary::before,
+.chain-router[open] > summary::before {
   content: none;
 }
 

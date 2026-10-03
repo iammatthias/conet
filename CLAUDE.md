@@ -66,9 +66,10 @@ them.
 - Every version identifier reads v3: contracts, salts, `conet.v3` keystream
   domain, frame format byte, observer domain. v3 replaced the contract-enforced
   page with a 64-bit random nonce.
-- Everything conet.fm serves describes the live Base mainnet deployment only:
-  no testnet coordinates, no superseded factories, no `conet.v0`. Retiring a
-  version means removing its coordinates from `web/public/`, never listing them
-  there as superseded.
+- Everything conet.fm serves describes the live v3 tuple only: the chain the
+  tuner indexes (Base, from env) plus the other mainnets where the same factory
+  is live, listed in `web/src/server/deployments.ts`. No testnet coordinates,
+  no superseded factories, no `conet.v0`. Retiring a version means removing its
+  coordinates from `web/public/`, never listing them there as superseded.
 - Foundry tests are dependency-free by design (hand-rolled asserts, no
   forge-std); keep it that way.

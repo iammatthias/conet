@@ -505,3 +505,71 @@ footer a {
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+
+.chain-router {
+  display: inline-block;
+  position: relative;
+}
+
+.chain-router summary {
+  display: inline;
+  list-style: none;
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-underline-offset: 0.2em;
+}
+
+.chain-router summary::-webkit-details-marker {
+  display: none;
+}
+
+.chain-router summary:focus-visible {
+  outline: 1px solid currentColor;
+  outline-offset: 2px;
+}
+
+.chain-menu {
+  position: absolute;
+  inset-block-start: calc(100% + var(--space-xs));
+  inset-inline-start: 0;
+  z-index: 10;
+  margin: 0;
+  padding: var(--space-xs) 0;
+  min-inline-size: 15rem;
+  list-style: none;
+  font-family: var(--data-font);
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: #232326;
+  background: #f3f3f1;
+  border: 1px solid var(--hairline);
+  box-shadow: 0 0.5rem 1.5rem color-mix(in srgb, currentColor 14%, transparent);
+}
+
+.chain-menu li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-s);
+  padding: 0 var(--space-s);
+}
+
+.chain-menu a {
+  color: inherit;
+}
+
+.chain-id,
+.chain-indexed {
+  color: var(--ink-muted);
+}
+
+footer .chain-menu {
+  inset-block-start: auto;
+  inset-block-end: calc(100% + var(--space-xs));
+}
+
+@media (prefers-color-scheme: dark) {
+  .chain-menu {
+    color: #e8e8e5;
+    background: #171719;
+  }
+}

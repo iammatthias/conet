@@ -65,7 +65,9 @@ code. A chain without the verified proxy, a chain that cannot execute the
 pinned bytecode, or a build with different compiler settings is not compatible
 with this rendezvous. The same address on another chain shares no state, so
 every deployment record carries chainId and the factory's deployment block.
-Base mainnet coordinates are in the repository README and `.env.example`.
+The live chains (Base, Ethereum, Robinhood Chain) and their blocks are in the
+repository README and `web/src/server/deployments.ts`; `.env.example` pins the
+chain the tuner indexes.
 
 ## Local Anvil workflow
 

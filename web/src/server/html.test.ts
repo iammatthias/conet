@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { Heard, StationMinted } from "./abi";
-import { factoryFragment, transmissionFragment } from "./html";
+import { chainRouter, factoryFragment, transmissionFragment } from "./html";
 
 const station = "0x1111111111111111111111111111111111111111";
 const creator = "0x2222222222222222222222222222222222222222";
@@ -79,5 +79,24 @@ describe("factory rows", () => {
     expect(factoryFragment([mint], cursor, 3n, 1n, `https://explorer.test/${hostile}`))
       .toContain(`data-explorer="https://explorer.test/${escaped}"`);
     expect(factoryFragment([mint], cursor, 3n, 1n)).not.toContain("data-explorer");
+  });
+});
+
+describe("chain router", () => {
+  const deployments = [
+    { chainId: 8453, name: "Base", explorer: "https://basescan.org", factoryBlock: 1, targetTransaction: "0x", factoryTransaction: "0x" },
+    { chainId: 1, name: "Ethereum", explorer: "https://etherscan.io", factoryBlock: 2, targetTransaction: "0x", factoryTransaction: "0x" },
+  ];
+
+  test("link the factory on every chain and mark only the indexed one", () => {
+    const body = chainRouter("Explorer", station, 8453, deployments);
+    expect(body).toContain(`<a href="https://basescan.org/address/${station}"`);
+    expect(body).toContain(`<a href="https://etherscan.io/address/${station}"`);
+    expect(body.match(/indexed here/g)?.length).toBe(1);
+    expect(body.indexOf("indexed here")).toBeLessThan(body.indexOf("Ethereum"));
+  });
+
+  test("escape the factory address", () => {
+    expect(chainRouter("Explorer", hostile, 8453, deployments)).not.toContain(hostile);
   });
 });

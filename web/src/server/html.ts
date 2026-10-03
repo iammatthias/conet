@@ -1,3 +1,4 @@
+import type { ChainDeployment } from "./deployments";
 import { type Heard, type StationMinted } from "./abi";
 import { formatCursor, type Cursor } from "./paging";
 import { fiveFigureGroups } from "../numbers";
@@ -12,6 +13,15 @@ export function escapeHtml(value: string): string {
       default: return "&#39;";
     }
   });
+}
+
+export function chainRouter(summary: string, factory: string, indexedChainId: number, deployments: readonly ChainDeployment[]): string {
+  const safeFactory = escapeHtml(factory);
+  const rows = deployments.map((deployment) => {
+    const indexed = deployment.chainId === indexedChainId ? ' <span class="chain-indexed">indexed here</span>' : "";
+    return `<li><a href="${escapeHtml(deployment.explorer)}/address/${safeFactory}" target="_blank" rel="noreferrer noopener">${escapeHtml(deployment.name)} <span class="chain-id">${deployment.chainId}</span></a>${indexed}</li>`;
+  }).join("");
+  return `<details class="chain-router"><summary>${summary}</summary><ul class="chain-menu" aria-label="Factory on each chain">${rows}</ul></details>`;
 }
 
 export function shortAddress(address: string): string {

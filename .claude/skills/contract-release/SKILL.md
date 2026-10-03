@@ -55,7 +55,8 @@ make abi-check     # web/public/abi/*.json match the compiled contracts
    changed, Stability), `README.md` (live deployment table and the version
    narrative), `.env.example`, `eth/README.md`, `eth/PROTOCOL.md`,
    `web/README.md`, `indexer/README.md`. Everything under `web/public/`
-   describes the live deployment only: remove the retired version's coordinates
+   describes the live tuple only, on every chain in
+   `web/src/server/deployments.ts`: remove the retired version's coordinates
    there rather than listing them as superseded.
 6. `make test`.
 7. Deploy (below) and record the receipt.
@@ -84,6 +85,25 @@ chain and block in `.env.example`, and the chain and block in the `This deployme
 section of `web/public/skill.md`. The served skill and the tuner describe one
 deployment: switching conet.fm to a new chain takes the old chain's Stations
 off the tuner, though they stay readable through any RPC and the explorer.
+
+Bringing the current version up on another chain, rather than cutting a new
+one, does not change the tuner: it still indexes the chain in `.env`. Add the
+chain to `web/src/server/deployments.ts` (chainId, name, explorer, factory
+block, both tx hashes) and the README's live-deployment table, name it in the
+served documents' chain lists, and let `make pins-check` find any document
+that misses it. Source-verify both contracts on that chain's explorer.
+
+When the RPCs you can reach cannot carry `forge script` (rate-limited free
+gateways, or a network that refuses TLS to most providers), skip the
+simulation: copy each transaction's `input` from an existing chain's
+`broadcast/DeployConetFactory.s.sol/<chainId>/run-latest.json`, confirm with
+`cast create2` that it reproduces both pinned addresses, sign offline with
+`cast mktx --nonce --gas-limit --gas-price --priority-gas-price --chain`, and
+`cast publish` (re-publishing an identical signed transaction is harmless).
+The target must land before the factory, whose constructor rejects a target
+with no code. Forge versions that do not know a chain cannot verify on it;
+submit to Etherscan's v2 API directly with `forge verify-contract
+--show-standard-json-input` and `chainid=` in the URL.
 
 Redeploy the indexer with a fresh database whenever the factory or chain
 changes. The index is bound to chainId and factory and refuses a mismatch, but

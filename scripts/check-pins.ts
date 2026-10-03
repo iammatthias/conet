@@ -1,3 +1,5 @@
+import { DEPLOYMENTS } from "../web/src/server/deployments";
+
 const root = new URL("../", import.meta.url);
 const read = (path: string) => Bun.file(new URL(path, root)).text();
 
@@ -78,9 +80,31 @@ for (const [path, required] of Object.entries(surfaces)) {
   }
 }
 
+const chainSurfaces: Record<string, ("name" | "factoryBlock" | "transactions")[]> = {
+  "README.md": ["name", "factoryBlock", "transactions"],
+  "web/public/skill.md": ["name", "factoryBlock"],
+  "web/public/deployment.json": ["name", "factoryBlock"],
+  "web/public/index.md": ["name", "factoryBlock"],
+  "web/public/llms.txt": ["name", "factoryBlock"],
+  "web/README.md": ["name", "factoryBlock"],
+};
+
+if (!DEPLOYMENTS.some((deployment) => String(deployment.chainId) === pins.chainId)) {
+  failures.push(`.env.example indexes chain ${pins.chainId}, which web/src/server/deployments.ts does not list`);
+}
+for (const [path, required] of Object.entries(chainSurfaces)) {
+  const text = (await read(path)).toLowerCase();
+  for (const deployment of DEPLOYMENTS) {
+    const values = required.flatMap((field) => field === "transactions" ? [deployment.factoryTransaction, deployment.targetTransaction] : [String(deployment[field])]);
+    for (const value of values) {
+      if (!text.includes(value.toLowerCase())) failures.push(`${path} does not carry ${deployment.name} (chain ${deployment.chainId}) ${value}`);
+    }
+  }
+}
+
 for (const [pin, value] of Object.entries(pins)) console.log(`${pin.padEnd(20)} ${value}`);
 if (failures.length > 0) {
   console.error(`\n${failures.join("\n")}\n\nRe-pin every surface above from eth/script and eth/test; see .claude/skills/contract-release.`);
   process.exit(1);
 }
-console.log(`\nall ${Object.keys(surfaces).length} surfaces carry the deployment pins`);
+console.log(`\nall ${Object.keys(surfaces).length} surfaces carry the deployment pins; ${Object.keys(chainSurfaces).length} name all ${DEPLOYMENTS.length} chains`);

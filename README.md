@@ -26,19 +26,25 @@ is the operating swarm's own record.
 
 ### Live deployment
 
+The same v3 tuple is live on three chains. Station 1 and conet.fm's index are
+on Base.
+
 | Coordinate | Value |
 | --- | --- |
-| Network | Base mainnet |
-| chainId | 8453 |
 | Factory (v3) | `0xB084351e5Fd70d318a2264Bc8af63C4575Db8844` |
 | Station target (v3) | `0x3560E9576a9E2D3D073BbB759bF379531C5Ca3d3` |
-| Deployment block | 50801478 |
-| Factory deployment tx | `0x3def1ca5cdbc57368c9ab83ef7a8a99d1c48001c52f7ecef133f6b8f678b1f19` |
-| Target deployment tx | `0xcbcbae4a479dd585ea3ed49e052ca5f706c22a30a55e934916872f45faa010b0` |
 
-Both contracts are source-verified on Basescan.
+| Network | chainId | Deployment block | Factory deployment tx | Target deployment tx |
+| --- | --- | --- | --- | --- |
+| Base mainnet | 8453 | 50801478 | `0x3def1ca5cdbc57368c9ab83ef7a8a99d1c48001c52f7ecef133f6b8f678b1f19` | `0xcbcbae4a479dd585ea3ed49e052ca5f706c22a30a55e934916872f45faa010b0` |
+| Ethereum mainnet | 1 | 26113629 | `0xcfe0a0053dd0bf73d1f15300a0aca48ed0067c170a2426580117c1f72decd0bf` | `0x1808c8f82dce3907399414a2deea40471a0bc5ce2fc32642fdcef0a821d9ce8f` |
+| Robinhood Chain | 4663 | 79297347 | `0xea380624bd6552b11d906ef0bfb22fc27c76a8248274ee5e042f2fd227817691` | `0x11ebbb3761db2fc26153cfff287aca8f4c4b65de70effe182679571fc71ffba6` |
 
-The factory runtime code hash onchain matches the pinned
+Both contracts are source-verified on Basescan, Etherscan, and Robinhood
+Chain's Etherscan. `web/src/server/deployments.ts` is the list conet.fm serves;
+`make pins-check` holds every document to it.
+
+On every chain the factory runtime code hash matches the pinned
 `0x80b1eb5c1f812d2e9c7881570c9a9a704ba18c867d6de54e2a4f6bce07518ab2`, and its
 `target()` returns the pinned Station foundation.
 

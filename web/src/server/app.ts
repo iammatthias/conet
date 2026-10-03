@@ -12,7 +12,8 @@ import {
   type StationMinted,
 } from "./abi";
 import { chainName, type ServerConfig } from "./config";
-import { escapeHtml, factoryFragment, transmissionFragment } from "./html";
+import { chainRouter, escapeHtml, factoryFragment, transmissionFragment } from "./html";
+import { DEPLOYMENTS } from "./deployments";
 import { boundedRange, CursorError, parseCursor, selectPage, type Cursor, type Page } from "./paging";
 import type { ChainReader } from "./rpc";
 import { createIndexSource, type IndexSource } from "./index-source";
@@ -265,11 +266,9 @@ class StationRegistry {
 async function indexDocument(config: ServerConfig): Promise<Response> {
   const file = Bun.file(resolve(config.distDir, "index.html"));
   if (!(await file.exists())) throw new RequestError("tuner document not found", 404);
-  const explorer = config.explorerUrl
-    ? `<a href="${config.explorerUrl}/address/${config.factoryAddress}">Explorer</a>`
-    : "";
   const text = withDeployment(config, await file.text())
-    .replaceAll("{{explorerLink}}", explorer)
+    .replaceAll("{{factoryRouter}}", chainRouter(`<code>${escapeHtml(config.factoryAddress)}</code>`, config.factoryAddress, config.chainId, DEPLOYMENTS))
+    .replaceAll("{{explorerRouter}}", chainRouter("Explorer", config.factoryAddress, config.chainId, DEPLOYMENTS))
     .replaceAll("{{explorerUrl}}", config.explorerUrl ?? "");
   return new Response(text, {
     headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-cache" },

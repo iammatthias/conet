@@ -39,6 +39,7 @@ function positiveInteger(value: string | undefined, fallback: number, name: stri
 const KNOWN_EXPLORERS: Readonly<Record<number, string>> = Object.freeze({
   1: "https://etherscan.io",
   8453: "https://basescan.org",
+  4663: "https://robin.etherscan.io",
   84532: "https://sepolia.basescan.org",
   11155111: "https://sepolia.etherscan.io",
 });
@@ -46,6 +47,7 @@ const KNOWN_EXPLORERS: Readonly<Record<number, string>> = Object.freeze({
 const KNOWN_CHAIN_NAMES: Readonly<Record<number, string>> = Object.freeze({
   1: "Ethereum",
   8453: "Base",
+  4663: "Robinhood Chain",
   84532: "Base Sepolia",
   11155111: "Sepolia",
   31337: "Anvil",

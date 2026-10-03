@@ -20,7 +20,7 @@ conformance vectors before you touch a chain.
 
 Everything here is version 3: the contracts, their CREATE2 salts, the wire
 protocol's `conet.v3` keystream domain, the frame's format byte, and the observer
-encoding's domain string. One number, one deployment.
+encoding's domain string. One version number throughout.
 
 ## This deployment
 
@@ -34,6 +34,19 @@ address is a deterministic CREATE2 rendezvous that can exist on several chains
 holding unrelated state, so chainId and deployment block are part of every
 durable coordinate. ABI JSON is at `/abi/ConetFactory.json` and
 `/abi/Conet.json` on this origin.
+
+The same v3 factory is live at that address on three chains:
+
+| Chain | chainId | factory deployment block |
+| --- | --- | --- |
+| Base | 8453 | 50801478 |
+| Ethereum | 1 | 26113629 |
+| Robinhood Chain | 4663 | 79297347 |
+
+Each chain holds its own Stations and its own history; nothing crosses between
+them. Pick one chain, require your RPC to report its chainId, and scan from its
+deployment block. The tuner on this origin indexes only the chainId at the top
+of this section.
 
 ## Operating order
 
@@ -165,8 +178,9 @@ So compare addresses literally and in full, against a value you obtained
 independently of the address in question.
 
 The pinned v3 tuple. These addresses follow from the salts and the init code
-alone, so they do not vary by chain; the live deployment is Base, chainId 8453,
-from block 50801478:
+alone, so they do not vary by chain. It is live on Base (chainId 8453, from block
+50801478), Ethereum (chainId 1, from block 26113629), and Robinhood Chain
+(chainId 4663, from block 79297347):
 
 ```
 factory   0xB084351e5Fd70d318a2264Bc8af63C4575Db8844

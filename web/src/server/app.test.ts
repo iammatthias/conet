@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { DEPLOYMENTS } from "./deployments";
 import { createApp } from "./app";
 import {
   HEARD_TOPIC,
@@ -200,7 +201,11 @@ describe("Bun Station server", () => {
 
     const page = await app(new Request("http://local/"));
     const pageText = await page.text();
-    expect(flowed(pageText)).toContain(`Anvil, chainId 31337 \u00b7 factory <code>${factory}</code>`);
+    expect(flowed(pageText)).toContain(`Anvil, chainId 31337 \u00b7 factory <details class="chain-router"><summary><code>${factory}</code></summary>`);
+    for (const deployment of DEPLOYMENTS) {
+      expect(pageText).toContain(`href="${deployment.explorer}/address/${factory}"`);
+    }
+    expect(pageText).toContain("<summary>Explorer</summary>");
     expect(pageText).not.toContain("{{");
 
     const llms = await app(new Request("http://local/llms.txt"));

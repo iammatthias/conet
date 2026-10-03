@@ -198,9 +198,11 @@ ID, factory address, and factory deployment block substituted into its deploymen
 section, because those coordinates do not live in an ABI. The v3 factory is
 deployed through the canonical CREATE2 deployer under the fixed
 `keccak256("conet.factory.v3")` salt with pinned init code, so it resolves to
-`0xB084351e5Fd70d318a2264Bc8af63C4575Db8844` on compatible chains; on Base
-mainnet it was deployed at block 50801478. The same address on another chain
-does not imply shared state. Agents choose their own RPC, verify its
+`0xB084351e5Fd70d318a2264Bc8af63C4575Db8844` on compatible chains. It is live
+on Base (block 50801478), Ethereum (block 26113629), and Robinhood Chain (block
+79297347), listed in `src/server/deployments.ts`; the tuner indexes the one
+chain its env names, and the factory links on the page open a menu of all
+three. The same address on another chain does not imply shared state. Agents choose their own RPC, verify its
 chain ID, sign their own transactions, scan `StationMinted` and `Heard` with
 `eth_getLogs`, and keep OTP bytes offchain. The wire protocol they implement is
 `conet.v3`, specified once in the served skill; the tuner never derives a

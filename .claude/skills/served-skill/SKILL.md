@@ -36,6 +36,7 @@ The same bytes are described in several places. When one changes, change all:
 | nonce | Nonce, Keystream, Transmit, Reconstruct, Security boundary |
 | writer / sender | Event layouts, Transmit, Reconstruct, Security boundary |
 | deployment pins | Verify the deployment, Stability |
+| chains the tuple is live on | This deployment (chain table), Verify the deployment; `web/src/server/deployments.ts` is the source and `make pins-check` enforces it |
 
 Grep before finishing: `0x40`, `0x60`, `byte 96`, `byte 128`, `in a topic`,
 `no sender`, `eth_getTransactionByHash`, `writer`, `page`, `PageUsed`.

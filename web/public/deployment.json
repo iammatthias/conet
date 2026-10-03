@@ -9,6 +9,11 @@
     "factory": "{{factoryAddress}}",
     "factoryDeploymentBlock": {{factoryBlock}}
   },
+  "liveOn": [
+    { "chainId": 8453, "chainName": "Base", "factoryDeploymentBlock": 50801478 },
+    { "chainId": 1, "chainName": "Ethereum", "factoryDeploymentBlock": 26113629 },
+    { "chainId": 4663, "chainName": "Robinhood Chain", "factoryDeploymentBlock": 79297347 }
+  ],
   "version": {
     "contracts": "v3",
     "keystreamDomain": "conet.v3",

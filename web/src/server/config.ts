@@ -1,4 +1,17 @@
 import { fileURLToPath } from "node:url";
+import { DEPLOYMENTS } from "./deployments";
+
+export interface ChainConfig {
+  chainId: number;
+  name: string;
+  rpcUrl: string;
+  factoryAddress: string;
+  factoryBlock: bigint;
+  confirmationDepth: bigint;
+  maxBlockRange: bigint;
+  indexerUrl?: string;
+  explorerUrl?: string;
+}
 
 export interface ServerConfig {
   rpcUrl: string;
@@ -14,6 +27,7 @@ export interface ServerConfig {
   indexerUrl?: string;
   explorerUrl?: string;
   embedOrigins: readonly string[];
+  chains: ReadonlyMap<number, ChainConfig>;
 }
 
 function unsignedBigInt(value: string | undefined, fallback: bigint, name: string): bigint {
@@ -88,9 +102,53 @@ function address(value: string | undefined): string {
   return candidate;
 }
 
+function blockRange(value: string | undefined, fallback: bigint, name: string): bigint {
+  const range = unsignedBigInt(value, fallback, name);
+  if (range < 1n) throw new Error(`${name} must be positive`);
+  return range;
+}
+
+function extraChainIds(value: string | undefined, primaryChainId: number): number[] {
+  const ids = (value ?? "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry !== "")
+    .map((entry) => positiveInteger(entry, 0, "STATION_CHAINS"));
+  for (const id of ids) {
+    if (id === primaryChainId) throw new Error(`STATION_CHAINS lists the primary chain ${id}`);
+  }
+  if (new Set(ids).size !== ids.length) throw new Error("STATION_CHAINS lists a chain twice");
+  return ids;
+}
+
+function extraChain(
+  env: Record<string, string | undefined>,
+  chainId: number,
+  primary: ChainConfig,
+): ChainConfig {
+  const deployment = DEPLOYMENTS.find((candidate) => candidate.chainId === chainId);
+  if (!deployment) throw new Error(`STATION_CHAINS lists chain ${chainId}, which has no factory deployment`);
+  const rpcUrl = env[`STATION_RPC_URL_${chainId}`] || env[`CONET_RPC_URL_${chainId}`];
+  if (!rpcUrl) throw new Error(`STATION_RPC_URL_${chainId} is required for chain ${chainId}`);
+  return {
+    chainId,
+    name: deployment.name,
+    rpcUrl,
+    factoryAddress: primary.factoryAddress,
+    factoryBlock: BigInt(deployment.factoryBlock),
+    confirmationDepth: unsignedBigInt(
+      env[`STATION_CONFIRMATION_DEPTH_${chainId}`],
+      primary.confirmationDepth,
+      `STATION_CONFIRMATION_DEPTH_${chainId}`,
+    ),
+    maxBlockRange: blockRange(env[`STATION_MAX_BLOCK_RANGE_${chainId}`], primary.maxBlockRange, `STATION_MAX_BLOCK_RANGE_${chainId}`),
+    indexerUrl: env[`STATION_INDEXER_URL_${chainId}`] || undefined,
+    explorerUrl: deployment.explorer,
+  };
+}
+
 export function loadConfig(env: Record<string, string | undefined> = Bun.env): ServerConfig {
-  const maxBlockRange = unsignedBigInt(env.STATION_MAX_BLOCK_RANGE, 2_000n, "STATION_MAX_BLOCK_RANGE");
-  if (maxBlockRange < 1n) throw new Error("STATION_MAX_BLOCK_RANGE must be positive");
+  const maxBlockRange = blockRange(env.STATION_MAX_BLOCK_RANGE, 2_000n, "STATION_MAX_BLOCK_RANGE");
   const maxPageSize = positiveInteger(env.STATION_MAX_PAGE_SIZE, 100, "STATION_MAX_PAGE_SIZE");
   if (maxPageSize > 100) throw new Error("STATION_MAX_PAGE_SIZE cannot exceed 100");
   const indexPageSize = positiveInteger(env.STATION_INDEX_PAGE_SIZE, 1_000, "STATION_INDEX_PAGE_SIZE");
@@ -98,19 +156,29 @@ export function loadConfig(env: Record<string, string | undefined> = Bun.env): S
 
   const chainId = positiveInteger(env.STATION_CHAIN_ID ?? env.CONET_CHAIN_ID, 31_337, "STATION_CHAIN_ID");
 
-  return {
-    rpcUrl: env.STATION_RPC_URL ?? env.CONET_RPC_URL ?? "http://127.0.0.1:8545",
+  const primary: ChainConfig = {
     chainId,
+    name: chainName(chainId),
+    rpcUrl: env.STATION_RPC_URL ?? env.CONET_RPC_URL ?? "http://127.0.0.1:8545",
     factoryAddress: address(env.STATION_FACTORY_ADDRESS ?? env.CONET_FACTORY_ADDRESS),
     factoryBlock: requiredUnsignedBigInt(env.STATION_FACTORY_BLOCK ?? env.CONET_FACTORY_BLOCK, "STATION_FACTORY_BLOCK"),
     confirmationDepth: unsignedBigInt(env.STATION_CONFIRMATION_DEPTH, 0n, "STATION_CONFIRMATION_DEPTH"),
     maxBlockRange,
+    indexerUrl: env.STATION_INDEXER_URL || undefined,
+    explorerUrl: explorer(env.STATION_EXPLORER_URL, chainId),
+  };
+  const chains = new Map<number, ChainConfig>([[chainId, primary]]);
+  for (const extraId of extraChainIds(env.STATION_CHAINS ?? env.CONET_CHAINS, chainId)) {
+    chains.set(extraId, extraChain(env, extraId, primary));
+  }
+
+  return {
+    ...primary,
     maxPageSize,
     indexPageSize,
     port: positiveInteger(env.PORT, 3000, "PORT"),
     distDir: env.STATION_DIST_DIR ?? fileURLToPath(new URL("../../dist", import.meta.url)),
-    indexerUrl: env.STATION_INDEXER_URL || undefined,
-    explorerUrl: explorer(env.STATION_EXPLORER_URL, chainId),
     embedOrigins: embedOrigins(env.STATION_EMBED_ORIGINS),
+    chains,
   };
 }

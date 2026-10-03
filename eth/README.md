@@ -67,7 +67,7 @@ with this rendezvous. The same address on another chain shares no state, so
 every deployment record carries chainId and the factory's deployment block.
 The live chains (Base, Ethereum, Robinhood Chain) and their blocks are in the
 repository README and `web/src/server/deployments.ts`; `.env.example` pins the
-chain the tuner indexes.
+tuner's primary chain.
 
 ## Local Anvil workflow
 

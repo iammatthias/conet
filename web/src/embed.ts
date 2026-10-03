@@ -1,5 +1,6 @@
 import css from "./style.css?inline";
 import { mountReceiver, type Receiver } from "./receiver";
+import { chainId } from "./receiver-location";
 import { receiverMarkup } from "./receiver-markup";
 
 const CONET_ORIGIN = "https://conet.fm";
@@ -10,9 +11,10 @@ class ConetTuner extends HTMLElement {
   connectedCallback(): void {
     if (this.receiver) return;
     const root = this.attachShadow({ mode: "open" });
-    root.innerHTML = `<style>${css}</style><main class="receiver-embed">${receiverMarkup({ tuneByAddress: false })}</main>`;
+    root.innerHTML = `<style>${css}</style><main class="receiver-embed">${receiverMarkup({ chainSelector: false, tuneByAddress: false })}</main>`;
     this.receiver = mountReceiver(root, {
       origin: (this.getAttribute("origin") ?? CONET_ORIGIN).replace(/\/+$/, ""),
+      chain: chainId(this.getAttribute("chain")),
     });
   }
 

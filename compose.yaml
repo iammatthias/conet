@@ -21,12 +21,59 @@ services:
       retries: 3
       start_period: 20s
 
+  indexer-1:
+    build:
+      context: ./indexer
+    restart: unless-stopped
+    environment:
+      - CONET_RPC_URL=${CONET_RPC_URL_1}
+      - CONET_CHAIN_ID=1
+      - CONET_FACTORY_ADDRESS=${CONET_FACTORY_ADDRESS}
+      - CONET_FACTORY_BLOCK=26113629
+      - CONET_DB_PATH=/data/conet-1.sqlite
+      - CONET_INDEXER_PORT=3100
+      - CONET_MAX_BLOCK_RANGE=${CONET_MAX_BLOCK_RANGE_1:-10}
+      - CONET_ADDRESS_CHUNK=${CONET_ADDRESS_CHUNK:-100}
+    volumes:
+      - ./data:/data
+    healthcheck:
+      test: ["CMD", "bun", "-e", "await fetch('http://127.0.0.1:3100/health').then(r => r.ok ? 0 : process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  indexer-4663:
+    build:
+      context: ./indexer
+    restart: unless-stopped
+    environment:
+      - CONET_RPC_URL=${CONET_RPC_URL_4663}
+      - CONET_CHAIN_ID=4663
+      - CONET_FACTORY_ADDRESS=${CONET_FACTORY_ADDRESS}
+      - CONET_FACTORY_BLOCK=79297347
+      - CONET_DB_PATH=/data/conet-4663.sqlite
+      - CONET_INDEXER_PORT=3100
+      - CONET_MAX_LAG_BLOCKS=${CONET_MAX_LAG_BLOCKS_4663:-2400}
+      - CONET_MAX_BLOCK_RANGE=${CONET_MAX_BLOCK_RANGE_4663:-100000}
+      - CONET_ADDRESS_CHUNK=${CONET_ADDRESS_CHUNK:-100}
+    volumes:
+      - ./data:/data
+    healthcheck:
+      test: ["CMD", "bun", "-e", "await fetch('http://127.0.0.1:3100/health').then(r => r.ok ? 0 : process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
   tuner:
     build:
       context: ./web
     restart: unless-stopped
     depends_on:
       - indexer
+      - indexer-1
+      - indexer-4663
     environment:
       - PORT=3000
       - STATION_RPC_URL=${CONET_RPC_URL}
@@ -36,5 +83,12 @@ services:
       - STATION_INDEXER_URL=http://indexer:3100
       - STATION_EMBED_ORIGINS=${CONET_EMBED_ORIGINS:-}
       - STATION_MAX_BLOCK_RANGE=${STATION_MAX_BLOCK_RANGE:-2000}
+      - STATION_CHAINS=1,4663
+      - STATION_RPC_URL_1=${CONET_RPC_URL_1}
+      - STATION_INDEXER_URL_1=http://indexer-1:3100
+      - STATION_MAX_BLOCK_RANGE_1=${CONET_MAX_BLOCK_RANGE_1:-10}
+      - STATION_RPC_URL_4663=${CONET_RPC_URL_4663}
+      - STATION_INDEXER_URL_4663=http://indexer-4663:3100
+      - STATION_MAX_BLOCK_RANGE_4663=${CONET_MAX_BLOCK_RANGE_4663:-100000}
     ports:
       - "${BIND_IP:-127.0.0.1}:${CONET_TUNER_PORT:-8900}:3000"

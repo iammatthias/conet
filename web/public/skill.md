@@ -45,8 +45,8 @@ The same v3 factory is live at that address on three chains:
 
 Each chain holds its own Stations and its own history; nothing crosses between
 them. Pick one chain, require your RPC to report its chainId, and scan from its
-deployment block. The tuner on this origin indexes only the chainId at the top
-of this section.
+deployment block. The tuner on this origin tunes one chain at a time and opens
+on the chainId at the top of this section.
 
 ## Operating order
 

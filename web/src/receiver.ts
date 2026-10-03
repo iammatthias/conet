@@ -1,3 +1,5 @@
+import { explorerOrigin, tunerPath, type ReceiverPosition, type TunerChain } from "./receiver-location";
+
 type Transmission = {
   station: string;
   stationId: string;
@@ -18,17 +20,20 @@ export interface ReceiverOptions {
   origin: string;
   explorerUrl?: string;
   station?: string;
+  chain?: number;
+  chains?: readonly TunerChain[];
+  onPosition?(position: ReceiverPosition): void;
 }
 
 export interface Receiver {
   tune(station: string): void;
+  tuneChain(chain: number): void;
   destroy(): void;
 }
 
 const MAX_DOM_TRANSMISSIONS = 80;
 const DIAL_MARK_LIMIT = 64;
 const FACTORY_PAGE_SIZE = 1_000;
-const EXPLORER_ORIGIN = /^https:\/\/[a-z0-9.-]+(?:\/[\w./-]*)?$/i;
 
 class FragmentError extends Error {
   constructor(readonly status: number) {
@@ -56,8 +61,12 @@ export function mountReceiver(root: ParentNode, options: ReceiverOptions): Recei
   const transmissionLog = element<HTMLElement>("transmission-log");
   const transmissionCount = element<HTMLOutputElement>("transmission-count");
   const stationList = element<HTMLDivElement>("station-list");
+  const chainPicker = root.querySelector<HTMLElement>("#chain-picker") ?? undefined;
+  const chainSelect = root.querySelector<HTMLSelectElement>("#chain-select") ?? undefined;
+  const chains = options.chains ?? [];
 
-  let explorerUrl = options.explorerUrl;
+  let chain = options.chain;
+  let explorerUrl = chains.find((candidate) => candidate.chainId === chain)?.explorer ?? explorerOrigin(options.explorerUrl);
   let tunedStation = "";
   let baselineEstablished = false;
   let highestSeenSequence = 0n;
@@ -78,6 +87,21 @@ export function mountReceiver(root: ParentNode, options: ReceiverOptions): Recei
   let pendingDialRefresh = false;
   let pendingDialAddress: string | undefined;
   let dialRefreshTimer: number | undefined;
+
+  if (chainPicker && chainSelect && chains.length > 1) {
+    chainSelect.replaceChildren(...chains.map((candidate) => {
+      const option = document.createElement("option");
+      option.value = String(candidate.chainId);
+      option.textContent = candidate.name;
+      option.selected = candidate.chainId === chain;
+      return option;
+    }));
+    chainPicker.hidden = false;
+    chainSelect.addEventListener("change", () => {
+      const selected = chains.find((candidate) => String(candidate.chainId) === chainSelect.value);
+      if (selected) tuneChain(selected.chainId);
+    });
+  }
 
   if (stationInput && tuneForm) {
     stationInput.addEventListener("focus", () => stationInput.select());
@@ -113,9 +137,11 @@ export function mountReceiver(root: ParentNode, options: ReceiverOptions): Recei
   requestKnownFrequencies();
   const initial = options.station ? normaliseAddress(options.station) : undefined;
   if (initial) tune(initial);
+  else reportPosition();
 
   return {
     tune,
+    tuneChain,
     destroy() {
       suspendReceiver();
       window.removeEventListener("pointerup", finishDialInteraction);
@@ -124,6 +150,34 @@ export function mountReceiver(root: ParentNode, options: ReceiverOptions): Recei
       window.removeEventListener("pageshow", onPageShow);
     },
   };
+
+  function reportPosition(): void {
+    options.onPosition?.({ chain, station: tunedStation });
+  }
+
+  function tuneChain(next: number): void {
+    if (next === chain) return;
+    chain = next;
+    if (chainSelect) chainSelect.value = String(next);
+    explorerUrl = chains.find((candidate) => candidate.chainId === next)?.explorer;
+    factoryAbort?.abort();
+    factoryAbort = undefined;
+    factoryRequestActive = false;
+    if (factoryPollTimer !== undefined) window.clearTimeout(factoryPollTimer);
+    factoryPollTimer = undefined;
+    cancelPendingDialRefresh();
+    knownFrequencyMap.clear();
+    factoryCursor = "";
+    factoryCaughtUp = false;
+    highestStationId = 0;
+    stationList.replaceChildren();
+    frequencyMarks.replaceChildren();
+    frequencyDial.max = "0";
+    frequencyDial.value = "0";
+    leaveBand();
+    updateFrequencyDial();
+    requestKnownFrequencies();
+  }
 
   async function fragment(path: string, signal: AbortSignal): Promise<string> {
     const response = await fetch(`${options.origin}${path}`, { signal, headers: { accept: "text/html" } });
@@ -142,6 +196,7 @@ export function mountReceiver(root: ParentNode, options: ReceiverOptions): Recei
     if (pollTimer !== undefined) window.clearTimeout(pollTimer);
     pollTimer = undefined;
     if (stationInput) stationInput.value = station;
+    reportPosition();
     stationPanel.hidden = false;
     transmissionStaging.replaceChildren();
     if (transmissionBody.querySelector("[data-transmission]")) setLogBusy(true);
@@ -162,8 +217,7 @@ export function mountReceiver(root: ParentNode, options: ReceiverOptions): Recei
     }
 
     const cursorMarker = stationList.querySelector<HTMLElement>("[data-station-cursor]");
-    const explorer = cursorMarker?.dataset.explorer;
-    if (explorer && EXPLORER_ORIGIN.test(explorer)) explorerUrl = explorer;
+    explorerUrl = explorerOrigin(cursorMarker?.dataset.explorer) ?? explorerUrl;
     const total = cursorMarker?.dataset.stationTotal;
     if (total && /^\d+$/.test(total)) highestStationId = Math.max(highestStationId, Number(total));
     const cursor = cursorMarker?.dataset.stationCursor;
@@ -185,19 +239,27 @@ export function mountReceiver(root: ParentNode, options: ReceiverOptions): Recei
     if (factoryPollTimer !== undefined) window.clearTimeout(factoryPollTimer);
     factoryPollTimer = undefined;
     factoryRequestActive = true;
-    factoryAbort = new AbortController();
-    const cursor = factoryCursor ? `&cursor=${encodeURIComponent(factoryCursor)}` : "";
-    fragment(`/_tuner/factory/stations?limit=${FACTORY_PAGE_SIZE}${cursor}`, factoryAbort.signal)
+    const controller = new AbortController();
+    factoryAbort = controller;
+    const path = tunerPath("/_tuner/factory/stations", chain, {
+      limit: String(FACTORY_PAGE_SIZE),
+      cursor: factoryCursor,
+    });
+    fragment(path, controller.signal)
       .then((html) => {
+        if (factoryAbort !== controller) return;
         stationList.innerHTML = html;
         ingestKnownFrequencies();
       })
       .catch((error: unknown) => {
+        if (factoryAbort !== controller) return;
         if (error instanceof DOMException && error.name === "AbortError") return;
         frequencyReadout.value = "Factory signal unavailable · retrying";
         scheduleFactoryScan(4_000);
       })
       .finally(() => {
+        if (factoryAbort !== controller) return;
+        factoryAbort = undefined;
         factoryRequestActive = false;
       });
   }
@@ -337,6 +399,7 @@ export function mountReceiver(root: ParentNode, options: ReceiverOptions): Recei
     transmissionCursor = "";
 
     if (stationInput) stationInput.value = "";
+    reportPosition();
     stationPanel.hidden = true;
     transmissionStaging.replaceChildren();
     setLogBusy(false);
@@ -454,9 +517,9 @@ export function mountReceiver(root: ParentNode, options: ReceiverOptions): Recei
         if (error instanceof DOMException && error.name === "AbortError") return;
         setLogBusy(false);
         if (error instanceof FragmentError && error.status === 404) {
-          showTransmissionPlaceholder("Frequency not found in this factory");
+          showTransmissionPlaceholder("Frequency not found on this chain");
           transmissionCount.value = "0";
-          setReceiverState("Frequency not found in this factory", "error");
+          setReceiverState("Frequency not found on this chain", "error");
           return;
         }
         setReceiverState("Carrier unavailable · retrying", "error");
@@ -469,9 +532,11 @@ export function mountReceiver(root: ParentNode, options: ReceiverOptions): Recei
 
   function requestTransmissions(): void {
     if (!tunedStation) return;
-    const cursor = transmissionCursor ? `&cursor=${encodeURIComponent(transmissionCursor)}` : "";
     requestTransmissionPage(
-      `/_tuner/stations/${encodeURIComponent(tunedStation)}/transmissions?limit=${MAX_DOM_TRANSMISSIONS}${cursor}`,
+      tunerPath(`/_tuner/stations/${encodeURIComponent(tunedStation)}/transmissions`, chain, {
+        limit: String(MAX_DOM_TRANSMISSIONS),
+        cursor: transmissionCursor,
+      }),
       baselineEstablished ? transmissionBody : transmissionStaging,
     );
   }

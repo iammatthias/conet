@@ -87,7 +87,7 @@ export class Syncer {
   }
 
   private shrink(): void {
-    this.range = Math.max(RANGE_FLOOR, Math.floor(this.range / 2));
+    this.range = Math.max(Math.min(RANGE_FLOOR, this.config.maxBlockRange), Math.floor(this.range / 2));
   }
 
   private grow(): void {

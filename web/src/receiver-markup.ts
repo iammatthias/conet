@@ -1,6 +1,14 @@
 export interface ReceiverMarkupOptions {
+  chainSelector: boolean;
   tuneByAddress: boolean;
 }
+
+const chainPicker = `
+    <div id="chain-picker" class="chain-picker stack gap-xs" hidden>
+        <label for="chain-select">Chain</label>
+        <select id="chain-select" name="chain"></select>
+    </div>
+`;
 
 const receiverBody = `
     <section
@@ -92,6 +100,8 @@ const tuneByAddressForm = `
     </form>
 `;
 
-export function receiverMarkup(options: ReceiverMarkupOptions = { tuneByAddress: true }): string {
-  return `<section class="receiver stack gap-l" aria-label="Receiver">${receiverBody}${options.tuneByAddress ? tuneByAddressForm : ""}</section>`;
+export function receiverMarkup(options: ReceiverMarkupOptions = { chainSelector: true, tuneByAddress: true }): string {
+  const controls = `${options.chainSelector ? chainPicker : ""}${options.tuneByAddress ? tuneByAddressForm : ""}`;
+  const header = controls ? `<div class="receiver-controls stack gap-s">${controls}</div>` : "";
+  return `<section class="receiver stack gap-l" aria-label="Receiver">${header}${receiverBody}</section>`;
 }

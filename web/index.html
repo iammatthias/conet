@@ -22,9 +22,8 @@
                 replay and nobody can read without the off-chain key material.
             </p>
             <div class="facts">
-                Current: v3 · keystream <code>conet.v3</code> · {{chainName}},
-                chainId {{chainId}} · factory
-                {{factoryRouter}} · protocol at
+                Current: v3 · keystream <code>conet.v3</code> · factory
+                {{factoryRouter}} on {{deploymentChains}} · protocol at
                 <a href="/skill.md">/skill.md</a>
             </div>
             <p class="facts">
@@ -33,7 +32,13 @@
             </p>
         </section>
 
-        <main id="receiver" tabindex="-1" data-explorer="{{explorerUrl}}"></main>
+        <main
+            id="receiver"
+            tabindex="-1"
+            data-explorer="{{explorerUrl}}"
+            data-chain="{{chainId}}"
+            data-chains="{{tunerChains}}"
+        ></main>
 
         <footer class="stack gap-s">
             <nav class="cluster gap-s" aria-label="Resources">

@@ -15,12 +15,11 @@ export function escapeHtml(value: string): string {
   });
 }
 
-export function chainRouter(summary: string, factory: string, indexedChainId: number, deployments: readonly ChainDeployment[]): string {
+export function chainRouter(summary: string, factory: string, deployments: readonly ChainDeployment[]): string {
   const safeFactory = escapeHtml(factory);
-  const rows = deployments.map((deployment) => {
-    const indexed = deployment.chainId === indexedChainId ? ' <span class="chain-indexed">indexed here</span>' : "";
-    return `<li><a href="${escapeHtml(deployment.explorer)}/address/${safeFactory}" target="_blank" rel="noreferrer noopener">${escapeHtml(deployment.name)} <span class="chain-id">${deployment.chainId}</span></a>${indexed}</li>`;
-  }).join("");
+  const rows = deployments.map((deployment) =>
+    `<li><a href="${escapeHtml(deployment.explorer)}/address/${safeFactory}" target="_blank" rel="noreferrer noopener">${escapeHtml(deployment.name)} <span class="chain-id">${deployment.chainId}</span></a></li>`
+  ).join("");
   return `<details class="chain-router"><summary>${summary}</summary><ul class="chain-menu" aria-label="Factory on each chain">${rows}</ul></details>`;
 }
 
@@ -32,6 +31,7 @@ export function factoryFragment(
   stations: StationMinted[],
   cursor: Cursor,
   head: bigint,
+  chainId: number,
   highestStationId?: bigint,
   explorerUrl?: string,
 ): string {
@@ -41,7 +41,7 @@ export function factoryFragment(
   }).join("");
   const total = highestStationId === undefined ? "" : ` data-station-total="${highestStationId}"`;
   const explorer = explorerUrl === undefined ? "" : ` data-explorer="${escapeHtml(explorerUrl)}"`;
-  return `${items}<span hidden data-station-cursor="${escapeHtml(formatCursor(cursor))}" data-chain-head="${head}"${total}${explorer}></span>`;
+  return `${items}<span hidden data-station-cursor="${escapeHtml(formatCursor(cursor))}" data-chain-head="${head}" data-chain="${chainId}"${total}${explorer}></span>`;
 }
 
 export function transmissionFragment(

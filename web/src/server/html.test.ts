@@ -68,7 +68,7 @@ describe("transmission rows", () => {
 describe("factory rows", () => {
   test("escape the Station address", () => {
     const mint: StationMinted = { stationId: 1n, station: hostile, creator, blockNumber: 2n, logIndex: 0n };
-    const body = factoryFragment([mint], cursor, 3n, 1n);
+    const body = factoryFragment([mint], cursor, 3n, 8453, 1n);
     expect(body).not.toContain(hostile);
     expect(body).toContain(`data-tune-station="${escaped}"`);
     expect(body).toContain(`data-station-total="1"`);
@@ -76,9 +76,13 @@ describe("factory rows", () => {
 
   test("carry the explorer on the cursor marker only when one is configured", () => {
     const mint: StationMinted = { stationId: 1n, station, creator, blockNumber: 2n, logIndex: 0n };
-    expect(factoryFragment([mint], cursor, 3n, 1n, `https://explorer.test/${hostile}`))
+    expect(factoryFragment([mint], cursor, 3n, 8453, 1n, `https://explorer.test/${hostile}`))
       .toContain(`data-explorer="https://explorer.test/${escaped}"`);
-    expect(factoryFragment([mint], cursor, 3n, 1n)).not.toContain("data-explorer");
+    expect(factoryFragment([mint], cursor, 3n, 8453, 1n)).not.toContain("data-explorer");
+  });
+
+  test("name the chain the page was read from on the cursor marker", () => {
+    expect(factoryFragment([], cursor, 3n, 4663)).toContain(`data-chain-head="3" data-chain="4663"`);
   });
 });
 
@@ -88,15 +92,15 @@ describe("chain router", () => {
     { chainId: 1, name: "Ethereum", explorer: "https://etherscan.io", factoryBlock: 2, targetTransaction: "0x", factoryTransaction: "0x" },
   ];
 
-  test("link the factory on every chain and mark only the indexed one", () => {
-    const body = chainRouter("Explorer", station, 8453, deployments);
+  test("link the factory on every chain without favouring one", () => {
+    const body = chainRouter("Explorer", station, deployments);
     expect(body).toContain(`<a href="https://basescan.org/address/${station}"`);
     expect(body).toContain(`<a href="https://etherscan.io/address/${station}"`);
-    expect(body.match(/indexed here/g)?.length).toBe(1);
-    expect(body.indexOf("indexed here")).toBeLessThan(body.indexOf("Ethereum"));
+    expect(body).not.toContain("indexed here");
+    expect(body.match(/<li>/g)?.length).toBe(deployments.length);
   });
 
   test("escape the factory address", () => {
-    expect(chainRouter("Explorer", hostile, 8453, deployments)).not.toContain(hostile);
+    expect(chainRouter("Explorer", hostile, deployments)).not.toContain(hostile);
   });
 });

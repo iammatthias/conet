@@ -13,8 +13,8 @@ gated by capability material held entirely offchain.
   `{{factoryAddress}}` · from block {{factoryBlock}}
 - **Also live:** the same factory address on Base (8453, from block 50801478),
   Ethereum (1, from block 26113629), and Robinhood Chain (4663, from block
-  79297347). Each chain holds its own Stations; the tuner here indexes the one
-  above.
+  79297347). Each chain holds its own Stations; the tuner here tunes one chain
+  at a time and opens on the one above.
 - **ABI:** [/abi/ConetFactory.json](/abi/ConetFactory.json) and
   [/abi/Conet.json](/abi/Conet.json)
 

@@ -260,6 +260,20 @@ describe("provider limits", () => {
   });
 });
 
+describe("small provider windows", () => {
+  test("a window cap below the narrowing floor is never exceeded after an error", async () => {
+    const { chain, syncer } = harness({ maxBlockRange: 10 });
+    chain.head = 249;
+    for (let block = 100; block <= 249; block += 1) chain.hash(block);
+    chain.onGetLogs = () => { throw new Error("eth_getLogs http 429"); };
+    await expect(syncer.step()).rejects.toThrow("429");
+    chain.onGetLogs = undefined;
+    await syncer.step();
+    const widths = chain.filters.map((filter) => filter.toBlock - filter.fromBlock + 1);
+    expect(Math.max(...widths)).toBeLessThanOrEqual(10);
+  });
+});
+
 describe("error backoff", () => {
   test("doubles with jitter inside the upper half and caps at a minute", () => {
     expect(backoffMs(1, () => 0)).toBe(500);

@@ -11,7 +11,7 @@ import {
   type RpcLog,
   type StationMinted,
 } from "./abi";
-import type { ServerConfig } from "./config";
+import type { ChainConfig, ServerConfig } from "./config";
 import type { IndexSource } from "./index-source";
 import type { ChainReader, LogFilter } from "./rpc";
 
@@ -35,6 +35,24 @@ const config = (): ServerConfig => ({
   port: 3000,
   distDir: "/path/that/does/not/exist",
   embedOrigins: ["https://iammatthias.com"],
+  chains: new Map(),
+});
+
+const robinhood: ChainConfig = {
+  chainId: 4663,
+  name: "Robinhood Chain",
+  rpcUrl: "http://robinhood.invalid",
+  factoryAddress: factory,
+  factoryBlock: 5n,
+  confirmationDepth: 0n,
+  maxBlockRange: 100n,
+  explorerUrl: "https://robin.explorer.test",
+};
+
+const multiChainConfig = (): ServerConfig => ({
+  ...config(),
+  explorerUrl: "https://primary.explorer.test",
+  chains: new Map([[robinhood.chainId, robinhood]]),
 });
 
 function event(cipher = "00ff7f"): RpcLog {
@@ -201,7 +219,9 @@ describe("Bun Station server", () => {
 
     const page = await app(new Request("http://local/"));
     const pageText = await page.text();
-    expect(flowed(pageText)).toContain(`Anvil, chainId 31337 \u00b7 factory <details class="chain-router"><summary><code>${factory}</code></summary>`);
+    expect(flowed(pageText)).toContain(`\u00b7 factory <details class="chain-router"><summary><code>${factory}</code></summary>`);
+    expect(flowed(pageText)).toContain("</details> on Base, Ethereum and Robinhood Chain \u00b7 protocol at");
+    expect(flowed(pageText)).toContain(`data-chain="31337" data-chains="[{&quot;chainId&quot;:31337,&quot;name&quot;:&quot;Anvil&quot;,&quot;explorer&quot;:&quot;https://explorer.test&quot;}]"`);
     for (const deployment of DEPLOYMENTS) {
       expect(pageText).toContain(`href="${deployment.explorer}/address/${factory}"`);
     }
@@ -450,6 +470,101 @@ describe("Bun Station server", () => {
     expect(body).toContain("data-group-count=\"1\"");
     expect(body).toContain("from 0x4444…4444");
     expect(body).toContain('<span class="groups">65407</span>');
+  });
+});
+
+describe("Chain selection", () => {
+  test("tunes another configured chain through its own reader, floor, and explorer", async () => {
+    const primary = fakeChain([mint()]);
+    const other = fakeChain([mintAt(station, 7n, 6n), { ...event(), blockNumber: "0x7" }], 9n);
+    const app = createApp(multiChainConfig(), { chain: primary, chains: { 4663: { chain: other } } });
+
+    const listing = await app(new Request("http://local/_tuner/factory/stations?chain=4663"));
+    expect(listing.status).toBe(200);
+    const body = await listing.text();
+    expect(body).toContain('data-station-id="7"');
+    expect(body).toContain('data-chain="4663"');
+    expect(body).toContain('data-explorer="https://robin.explorer.test"');
+    expect(other.logCalls[0]).toMatchObject({ fromBlock: 5n, toBlock: 9n });
+    expect(primary.reads).toEqual([]);
+
+    const belowFloor = await app(new Request("http://local/_tuner/factory/stations?chain=4663&cursor=4:-1"));
+    expect(belowFloor.status).toBe(400);
+    expect(await belowFloor.json()).toMatchObject({ resolution: "Use block:logIndex at or after Robinhood Chain factory block 5." });
+
+    const tuned = await app(new Request(`http://local${transmissionsPath}?chain=4663`));
+    expect(tuned.status).toBe(200);
+    const tunedBody = await tuned.text();
+    expect(tunedBody).toContain('data-station-id="7"');
+    expect(tunedBody).toContain('href="https://robin.explorer.test/block/7"');
+    expect(other.registryCalls).toEqual([station]);
+    expect(primary.reads).toEqual([]);
+  });
+
+  test("the primary chain answers when no chain is named", async () => {
+    const primary = fakeChain([mint()]);
+    const other = fakeChain([]);
+    const app = createApp(multiChainConfig(), { chain: primary, chains: { 4663: { chain: other } } });
+
+    const listing = await app(new Request("http://local/_tuner/factory/stations"));
+    const body = await listing.text();
+    expect(body).toContain('data-chain="31337"');
+    expect(body).toContain('data-explorer="https://primary.explorer.test"');
+    expect(other.reads).toEqual([]);
+  });
+
+  test("a Station verified on one chain is not found on another", async () => {
+    const primary = fakeChain([mint(), event()]);
+    const other = fakeChain([]);
+    const app = createApp(multiChainConfig(), { chain: primary, chains: { 4663: { chain: other } } });
+
+    expect((await app(new Request(`http://local${transmissionsPath}`))).status).toBe(200);
+
+    const elsewhere = await app(new Request(`http://local${transmissionsPath}?chain=4663`));
+    expect(elsewhere.status).toBe(404);
+    expect(await elsewhere.json()).toMatchObject({
+      code: "station_not_registered",
+      detail: "Station was not minted by the factory on Robinhood Chain",
+    });
+    expect(other.registryCalls).toEqual([station]);
+    expect(other.logCalls).toEqual([]);
+  });
+
+  test("a chain the tuner is not configured for is a bad request that touches no RPC", async () => {
+    const primary = fakeChain([mint()]);
+    const other = fakeChain([mint()]);
+    const app = createApp(multiChainConfig(), { chain: primary, chains: { 4663: { chain: other } } });
+
+    for (const chain of ["1", "8453", "abc", "-1", "4663.0"]) {
+      for (const path of listenerPaths(`chain=${chain}`)) {
+        const response = await app(new Request(`http://local${path}`));
+        expect(response.status).toBe(400);
+        expect(response.headers.get("content-type")).toContain("application/problem+json");
+        expect(await response.json()).toMatchObject({
+          code: "unknown_chain",
+          resolution: "Use one of the tuned chain ids: 31337, 4663.",
+        });
+      }
+    }
+    expect(primary.reads).toEqual([]);
+    expect(other.reads).toEqual([]);
+  });
+
+  test("offers the page every tunable chain with its explorer", async () => {
+    const distDir = `${import.meta.dir}/../../node_modules/.cache/chain-options-test`;
+    const { mkdirSync, rmSync, copyFileSync } = await import("node:fs");
+    rmSync(distDir, { recursive: true, force: true });
+    mkdirSync(distDir, { recursive: true });
+    copyFileSync(`${import.meta.dir}/../../index.html`, `${distDir}/index.html`);
+    const app = createApp({ ...multiChainConfig(), distDir }, { chain: fakeChain([]), chains: { 4663: { chain: fakeChain([]) } } });
+
+    const page = await (await app(new Request("http://local/"))).text();
+    const options = /data-chains="([^"]*)"/.exec(page)?.[1]?.replaceAll("&quot;", '"');
+    expect(JSON.parse(options ?? "null")).toEqual([
+      { chainId: 31_337, name: "Anvil", explorer: "https://primary.explorer.test" },
+      { chainId: 4663, name: "Robinhood Chain", explorer: "https://robin.explorer.test" },
+    ]);
+    rmSync(distDir, { recursive: true, force: true });
   });
 });
 

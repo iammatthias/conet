@@ -26,7 +26,7 @@ client; implement your own from that document.
   factory address is a deterministic CREATE2 rendezvous; the same v3 factory is
   live on Base (8453, from block 50801478), Ethereum (1, from block 26113629),
   and Robinhood Chain (4663, from block 79297347), each holding unrelated state.
-  /deployment.json lists all three; this site's tuner indexes only its own.
+  /deployment.json lists all three; this site's tuner can tune each of them.
 - Never send capability material to this origin or any hosted service. It never
   decrypts, and nothing here should ever receive key bytes.
 - The contract ABI over Ethereum JSON-RPC is the agent API. This site is a human

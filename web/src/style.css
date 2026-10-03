@@ -42,7 +42,7 @@ body {
 body .site-header,
 body .definition,
 body .frequency-tuner,
-body .direct-tune,
+body .receiver-controls,
 body footer {
   max-inline-size: var(--column);
 }
@@ -122,7 +122,8 @@ label {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -130,6 +131,7 @@ code,
 button,
 output,
 summary,
+select,
 input[type="text"],
 input[type="number"],
 .frequency-tuner {
@@ -138,6 +140,7 @@ input[type="number"],
 
 button,
 summary,
+select,
 input[type="text"],
 input[type="number"] {
   font-size: 0.8125rem;
@@ -171,6 +174,7 @@ a {
 }
 
 button,
+select,
 input:not([type="range"]) {
   min-block-size: 2.125rem;
   padding: 0.35rem 0.6rem;
@@ -190,7 +194,7 @@ button:enabled {
   cursor: pointer;
 }
 
-:where(button, input, audio, summary):focus-visible {
+:where(button, input, select, audio, summary):focus-visible {
   outline: 2px solid LinkText;
   outline-offset: 2px;
 }
@@ -309,6 +313,21 @@ input[type="text"] {
   color: var(--ink-muted);
 }
 
+#chain-select {
+  inline-size: 100%;
+  padding-inline-end: 1.75rem;
+  -webkit-appearance: none;
+  appearance: none;
+  border: 1px solid var(--hairline);
+  border-radius: 0;
+  background:
+    linear-gradient(45deg, transparent 50%, currentColor 50%) calc(100% - 0.95rem) 55% / 0.3rem 0.3rem no-repeat,
+    linear-gradient(135deg, currentColor 50%, transparent 50%) calc(100% - 0.65rem) 55% / 0.3rem 0.3rem no-repeat;
+  color: inherit;
+  cursor: pointer;
+}
+
+.chain-picker label,
 .direct-tune label {
   font-size: 0.6875rem;
   letter-spacing: 0.14em;
@@ -562,8 +581,7 @@ footer a {
   color: inherit;
 }
 
-.chain-id,
-.chain-indexed {
+.chain-id {
   color: var(--ink-muted);
 }
 

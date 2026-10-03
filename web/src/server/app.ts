@@ -11,17 +11,27 @@ import {
   type RpcLog,
   type StationMinted,
 } from "./abi";
-import { chainName, type ServerConfig } from "./config";
+import { chainName, type ChainConfig, type ServerConfig } from "./config";
 import { chainRouter, escapeHtml, factoryFragment, transmissionFragment } from "./html";
 import { DEPLOYMENTS } from "./deployments";
 import { boundedRange, CursorError, parseCursor, selectPage, type Cursor, type Page } from "./paging";
-import type { ChainReader } from "./rpc";
+import { JsonRpcClient, type ChainReader } from "./rpc";
 import { createIndexSource, type IndexSource } from "./index-source";
 
-export interface AppDependencies {
+export interface ChainDependencies {
   chain: ChainReader;
   indexSource?: IndexSource;
+}
+
+export interface AppDependencies extends ChainDependencies {
+  chains?: Readonly<Record<number, ChainDependencies>>;
   now?: () => number;
+}
+
+interface ChainContext extends ChainConfig {
+  reader: ChainReader;
+  indexSource?: IndexSource;
+  registry: StationRegistry;
 }
 
 const REJECTION_TTL_MS = 60_000;
@@ -58,6 +68,10 @@ function problem(request: Request, error: RequestError | Error): Response {
     },
     { status, headers: { "content-type": "application/problem+json", "cache-control": "no-store" } },
   );
+}
+
+function chainList(names: readonly string[]): string {
+  return names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
 }
 
 function withDeployment(config: ServerConfig, text: string): string {
@@ -141,7 +155,7 @@ function html(body: string): Response {
   });
 }
 
-function requestCursor(value: string | null, minimumBlock: bigint, floorLabel = "configured factory block"): Cursor {
+function requestCursor(value: string | null, minimumBlock: bigint, floorLabel: string): Cursor {
   try {
     return parseCursor(value, minimumBlock);
   } catch (error) {
@@ -157,7 +171,7 @@ function requestCursor(value: string | null, minimumBlock: bigint, floorLabel = 
   }
 }
 
-async function chainHead(chain: ChainReader, config: ServerConfig): Promise<bigint> {
+async function chainHead(chain: ChainReader, config: ChainConfig): Promise<bigint> {
   const head = await chain.blockNumber();
   return head > config.confirmationDepth ? head - config.confirmationDepth : 0n;
 }
@@ -168,7 +182,7 @@ function emptyPage<T>(head: bigint, cursor: Cursor): Page<T> {
 
 async function logsPage<T>(
   chain: ChainReader,
-  config: ServerConfig,
+  config: ChainConfig,
   cursor: Cursor,
   pageLimit: number,
   addressValue: string,
@@ -186,12 +200,12 @@ async function logsPage<T>(
   return selectPage(logs, cursor, toBlock, head, pageLimit, parse);
 }
 
-function notRegistered(config: ServerConfig): RequestError {
+function notRegistered(config: ChainConfig): RequestError {
   return new RequestError(
-    "Station was not minted by the configured factory",
+    `Station was not minted by the factory on ${config.name}`,
     404,
     "station_not_registered",
-    `Tune a Station whose stationId on factory ${config.factoryAddress} is non-zero.`,
+    `Tune a Station whose stationId on factory ${config.factoryAddress} on chain ${config.chainId} is non-zero.`,
   );
 }
 
@@ -201,7 +215,7 @@ class StationRegistry {
 
   constructor(
     private readonly chain: ChainReader,
-    private readonly config: ServerConfig,
+    private readonly config: ChainConfig,
     private readonly indexSource: IndexSource | undefined,
     private readonly now: () => number,
   ) {}
@@ -263,12 +277,19 @@ class StationRegistry {
   }
 }
 
-async function indexDocument(config: ServerConfig): Promise<Response> {
+async function indexDocument(config: ServerConfig, contexts: ReadonlyMap<number, ChainContext>): Promise<Response> {
   const file = Bun.file(resolve(config.distDir, "index.html"));
   if (!(await file.exists())) throw new RequestError("tuner document not found", 404);
+  const tunable = Array.from(contexts.values(), (context) => ({
+    chainId: context.chainId,
+    name: context.name,
+    explorer: context.explorerUrl ?? "",
+  }));
   const text = withDeployment(config, await file.text())
-    .replaceAll("{{factoryRouter}}", chainRouter(`<code>${escapeHtml(config.factoryAddress)}</code>`, config.factoryAddress, config.chainId, DEPLOYMENTS))
-    .replaceAll("{{explorerRouter}}", chainRouter("Explorer", config.factoryAddress, config.chainId, DEPLOYMENTS))
+    .replaceAll("{{factoryRouter}}", chainRouter(`<code>${escapeHtml(config.factoryAddress)}</code>`, config.factoryAddress, DEPLOYMENTS))
+    .replaceAll("{{explorerRouter}}", chainRouter("Explorer", config.factoryAddress, DEPLOYMENTS))
+    .replaceAll("{{deploymentChains}}", escapeHtml(chainList(DEPLOYMENTS.map((deployment) => deployment.name))))
+    .replaceAll("{{tunerChains}}", escapeHtml(JSON.stringify(tunable)))
     .replaceAll("{{explorerUrl}}", config.explorerUrl ?? "");
   return new Response(text, {
     headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-cache" },
@@ -324,10 +345,50 @@ function withEmbedOrigin(response: Response, origin: string): Response {
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
+function chainContexts(config: ServerConfig, dependencies: AppDependencies): ReadonlyMap<number, ChainContext> {
+  const now = dependencies.now ?? Date.now;
+  const primary: ChainConfig = {
+    chainId: config.chainId,
+    name: chainName(config.chainId),
+    rpcUrl: config.rpcUrl,
+    factoryAddress: config.factoryAddress,
+    factoryBlock: config.factoryBlock,
+    confirmationDepth: config.confirmationDepth,
+    maxBlockRange: config.maxBlockRange,
+    indexerUrl: config.indexerUrl,
+    explorerUrl: config.explorerUrl,
+  };
+  const entries: Array<[ChainConfig, ChainDependencies | undefined]> = [
+    [primary, dependencies],
+    ...Array.from(config.chains.values())
+      .filter((chain) => chain.chainId !== config.chainId)
+      .map((chain): [ChainConfig, ChainDependencies | undefined] => [chain, dependencies.chains?.[chain.chainId]]),
+  ];
+  return new Map(entries.map(([chain, supplied]) => {
+    const reader = supplied?.chain ?? new JsonRpcClient(chain.rpcUrl);
+    const indexSource = supplied?.indexSource ?? (chain.indexerUrl ? createIndexSource(chain.indexerUrl) : undefined);
+    const registry = new StationRegistry(reader, chain, indexSource, now);
+    return [chain.chainId, { ...chain, reader, indexSource, registry }];
+  }));
+}
+
+function selectedChain(url: URL, contexts: ReadonlyMap<number, ChainContext>, primaryChainId: number): ChainContext {
+  const raw = url.searchParams.get("chain");
+  const chainId = raw === null || raw === "" ? primaryChainId : /^\d{1,15}$/.test(raw) ? Number(raw) : undefined;
+  const context = chainId === undefined ? undefined : contexts.get(chainId);
+  if (!context) {
+    throw new RequestError(
+      "chain is not tuned here",
+      400,
+      "unknown_chain",
+      `Use one of the tuned chain ids: ${Array.from(contexts.keys()).join(", ")}.`,
+    );
+  }
+  return context;
+}
+
 export function createApp(config: ServerConfig, dependencies: AppDependencies): AppHandler {
-  const indexSource = dependencies.indexSource
-    ?? (config.indexerUrl ? createIndexSource(config.indexerUrl) : undefined);
-  const registry = new StationRegistry(dependencies.chain, config, indexSource, dependencies.now ?? Date.now);
+  const contexts = chainContexts(config, dependencies);
   let closed = false;
   const handle = async function handle(request: Request): Promise<Response> {
     const url = new URL(request.url);
@@ -349,7 +410,7 @@ export function createApp(config: ServerConfig, dependencies: AppDependencies): 
         );
       }
       if ((request.method === "GET" || request.method === "HEAD") && (url.pathname === "/" || url.pathname === "/index.html")) {
-        const response = await indexDocument(config);
+        const response = await indexDocument(config, contexts);
         return request.method === "HEAD" ? new Response(null, { status: response.status, headers: response.headers }) : response;
       }
 
@@ -367,38 +428,40 @@ export function createApp(config: ServerConfig, dependencies: AppDependencies): 
       }
 
       if (request.method === "GET" && url.pathname === "/_tuner/factory/stations") {
-        const cursor = requestCursor(url.searchParams.get("cursor"), config.factoryBlock);
-        const pageLimit = limit(url, indexSource ? config.indexPageSize : config.maxPageSize);
-        const page = await indexSource?.stations(cursor, pageLimit) ?? await logsPage(
-          dependencies.chain,
-          config,
+        const chain = selectedChain(url, contexts, config.chainId);
+        const cursor = requestCursor(url.searchParams.get("cursor"), chain.factoryBlock, `${chain.name} factory block`);
+        const pageLimit = limit(url, chain.indexSource ? config.indexPageSize : config.maxPageSize);
+        const page = await chain.indexSource?.stations(cursor, pageLimit) ?? await logsPage(
+          chain.reader,
+          chain,
           cursor,
           pageLimit,
-          config.factoryAddress,
+          chain.factoryAddress,
           [STATION_MINTED_TOPIC],
           parseStationMinted,
         );
-        return html(factoryFragment(page.values, page.cursor, page.head, page.highestStationId, config.explorerUrl));
+        return html(factoryFragment(page.values, page.cursor, page.head, chain.chainId, page.highestStationId, chain.explorerUrl));
       }
 
       const transmissionRoute = /^\/_tuner\/stations\/(0x[0-9a-fA-F]{40})\/transmissions$/.exec(url.pathname);
       if (request.method === "GET" && transmissionRoute) {
+        const chain = selectedChain(url, contexts, config.chainId);
         const station = address(transmissionRoute[1]);
         const rawCursor = url.searchParams.get("cursor");
-        requestCursor(rawCursor, config.factoryBlock);
-        const pageLimit = limit(url, indexSource ? config.indexPageSize : config.maxPageSize);
-        const mint = await registry.mint(station);
+        requestCursor(rawCursor, chain.factoryBlock, `${chain.name} factory block`);
+        const pageLimit = limit(url, chain.indexSource ? config.indexPageSize : config.maxPageSize);
+        const mint = await chain.registry.mint(station);
         const cursor = requestCursor(rawCursor, mint.blockNumber, "Station mint block");
-        const page = await indexSource?.transmissions(station, cursor, pageLimit) ?? await logsPage(
-          dependencies.chain,
-          config,
+        const page = await chain.indexSource?.transmissions(station, cursor, pageLimit) ?? await logsPage(
+          chain.reader,
+          chain,
           cursor,
           pageLimit,
           station,
           [HEARD_TOPIC],
           parseHeard,
         );
-        return html(transmissionFragment(page.values, station, mint.stationId.toString(), mint.creator, page.cursor, page.head, config.explorerUrl));
+        return html(transmissionFragment(page.values, station, mint.stationId.toString(), mint.creator, page.cursor, page.head, chain.explorerUrl));
       }
 
       if (url.pathname.startsWith("/_tuner/")) {
@@ -421,7 +484,7 @@ export function createApp(config: ServerConfig, dependencies: AppDependencies): 
   handle.close = () => {
     if (closed) return;
     closed = true;
-    registry.clear();
+    for (const context of contexts.values()) context.registry.clear();
   };
   return handle;
 }

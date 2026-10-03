@@ -1,6 +1,6 @@
 # CONET indexer
 
-A read-only index of one `ConetFactory` deployment. It backfills `StationMinted`
+A read-only index of one `ConetFactory` deployment on one chain. It backfills `StationMinted`
 and `Heard` events into SQLite in WAL mode, tails the chain head, and serves the
 tuner. The tuner treats it as a cache: when the index is unreachable or behind,
 the tuner falls back to Ethereum JSON-RPC.
@@ -119,12 +119,21 @@ database needs no backup story beyond "delete it and restart."
 
 ## Deployment
 
-`compose.yaml` at the repository root runs the indexer and the tuner together.
-The indexer publishes no port and is reached over the compose network as
-`http://indexer:3100`; only the tuner publishes one, bound to `${BIND_IP}` so it
-never listens on every interface. Copy `.env.example` to `.env` and fill it in;
-nothing in it is secret. Changing `CONET_FACTORY_ADDRESS` there means deleting
-`./data/conet.sqlite*` first, as above.
+`compose.yaml` at the repository root runs one indexer per chain beside the
+tuner: `indexer` for the primary chain in `.env`, `indexer-1` for Ethereum, and
+`indexer-4663` for Robinhood Chain, each with its own database
+(`./data/conet.sqlite`, `./data/conet-1.sqlite`, `./data/conet-4663.sqlite`).
+The extra two take their RPC from `CONET_RPC_URL_1` and `CONET_RPC_URL_4663`
+and their scan window from `CONET_MAX_BLOCK_RANGE_1` (default 10, the
+`eth_getLogs` limit of Alchemy's free tier) and `CONET_MAX_BLOCK_RANGE_4663`;
+the window starts at that cap and never grows past it, even after narrowing on
+an error. The indexers publish no port and
+are reached over the compose network as `http://indexer:3100`,
+`http://indexer-1:3100`, and `http://indexer-4663:3100`; only the tuner
+publishes one, bound to `${BIND_IP}` so it never listens on every interface.
+Copy `.env.example` to `.env` and fill it in; nothing in it is secret. Changing
+`CONET_FACTORY_ADDRESS` there means deleting every `./data/conet*.sqlite*`
+first, as above.
 
 The database lives on a bind mount at `./data`. WAL writes `-wal` and `-shm`
 files beside the database, so the **directory** must be writable by the container

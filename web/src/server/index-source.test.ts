@@ -76,6 +76,19 @@ describe("the index yields to RPC whenever it cannot answer exactly", () => {
     expect(page?.cursor).toEqual({ block: 501n, logIndex: -1n });
   });
 
+  test("a caught-up cursor one past the indexed head is answered by the index, not the chain", async () => {
+    respond = () => json({ stations: [], cursor: "501:-1", scannedThrough: 500 });
+    const page = await source().stations({ block: 501n, logIndex: -1n }, 100);
+    expect(page?.values).toEqual([]);
+    expect(page?.cursor).toEqual({ block: 501n, logIndex: -1n });
+    expect(page?.head).toBe(500n);
+  });
+
+  test("a cursor two past the indexed head still yields to the chain", async () => {
+    respond = () => json({ stations: [], cursor: "502:-1", scannedThrough: 500 });
+    expect(await source().stations({ block: 502n, logIndex: -1n }, 100)).toBeUndefined();
+  });
+
   test("a Station the index has not seen yields without opening the cooldown", async () => {
     const index = source();
     respond = () => json({ error: "station not indexed" }, 404);

@@ -120,7 +120,7 @@ function indexedPage<T>(
 }
 
 function coveringCursor<T>(page: Page<T> | undefined, cursor: Cursor): Page<T> | undefined {
-  return page && page.head >= cursor.block ? page : undefined;
+  return page && page.head + 1n >= cursor.block ? page : undefined;
 }
 
 export function createIndexSource(baseUrl: string): IndexSource {

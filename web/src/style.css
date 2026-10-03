@@ -567,9 +567,21 @@ footer a {
   color: var(--ink-muted);
 }
 
+footer nav {
+  position: relative;
+}
+
+footer .chain-router {
+  position: static;
+}
+
 footer .chain-menu {
   inset-block-start: auto;
   inset-block-end: calc(100% + var(--space-xs));
+}
+
+.chain-menu {
+  max-inline-size: calc(100vw - 2 * var(--space-m));
 }
 
 @media (prefers-color-scheme: dark) {

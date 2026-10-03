@@ -523,6 +523,10 @@ footer a {
   display: none;
 }
 
+.chain-router summary::before {
+  content: none;
+}
+
 .chain-router summary:focus-visible {
   outline: 1px solid currentColor;
   outline-offset: 2px;

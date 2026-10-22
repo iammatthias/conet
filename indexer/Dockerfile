@@ -1,4 +1,4 @@
-FROM oven/bun:1.3.14-alpine AS runtime
+FROM oven/bun:1.4.4-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 COPY package.json bun.lock ./
